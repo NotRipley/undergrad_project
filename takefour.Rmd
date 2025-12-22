@@ -1,0 +1,326 @@
+---
+title: "takefour"
+output: html_document
+---
+
+This one is the centres with predefined stuff then noise. So we generate our samples quickly and append a bunch of noise to them. We keep the tag on them and use Asjusted Rand Index. We want to plot 10^6 dimensions so we can observe the curse of dimensionality. So that we aren't testing the quality of a clustering metric, we are using the true number of clusters. However, if this doesn't work, we can try not to give it the true number of clusters and instead get it to guess with silhouette, gap stat or elbow plot. 
+
+Not being stupid, we copy in all of takethree. We only need to change the data creation functions to be random noise after a certain number of dimensions.
+
+We want to clear the workflow and comment code for this one, then save the html and send it to Cecilia. 
+Then we make a start on the Splatter simulations. 
+If we get to a good point with the code theres lots more to do so we worry about that when we get there. 
+
+```{r Libraries}
+
+library(tidyverse) #for general stuff
+library(factoextra) #for clustering
+library(cluster) #for clustering
+library(mclust) #for more clustering specifically the arandi
+library(splatter) #for simulated single cell RNA sequencing count data
+library(scater)
+
+```
+
+
+
+```{r Define Functions}
+
+# Creates a centre of dimension n and adds N dimensions of gaussian noise
+sample_maker_noisy <- function(n, m, iteration, N) {
+  # n - useful features
+  # m - observations per feature
+  # iteration - counter variable that sets the location of the centre
+  # N - number of noise dimensions
+  
+  temp_mean <- iteration*1.5
+  temp_sd <- 2
+  
+  # create the useful and noisy dimensions separately then combine into one matrix
+  mat_base <- matrix(rnorm(n*m, temp_mean, temp_sd), nrow = m, ncol = n)
+  mat_noise <- matrix(rnorm(N*m, 0, 2), nrow = m, ncol = N)
+  mat <- cbind(mat_base, mat_noise)
+  
+  # format data frame for output - add tag variable s.t. we can compute arandi later
+  df <- as.data.frame(mat)
+  names(df) <- paste0("var", seq_len(n))
+  df$tag <- iteration
+  
+  return(df)
+}
+
+
+# uses sample_maker_noisy to create one dataframe of k 'noisy' centres
+create_data_noisy <- function(k, n, m, N) {
+  # k - number of centres
+  # n - number of meaningful features 
+  # m - observations per feature
+  # N - number of features of noise (so the data will have n + N features in total)
+  # we expect N >> n
+  
+  frame_list <- list()
+  
+  # iterate through k centres and create the data for each
+  for (i in 1:k) {
+    frame_list[[i]] <- sample_maker_noisy(n = n, m = m, iteration = i, N = N)
+    print(paste0("MADE DATASET", i, "OF", k))
+  }
+  
+  #make into one dataframe again with do.call
+  df <- data.frame(do.call(rbind, frame_list))
+  
+  return(df)
+}
+
+# uses create_data_noisy to generate adjusted rand index scores per a passed vector of dimensions
+scores_generator_arandi_noisy <- function(k, n, m, N, v) {
+  # k - number of centres
+  # n - number of meaningful dimensions
+  # m - observations per centre
+  # N - number of noise dimensions
+  # v - vector of dimension numbers to take arandi score at
+  
+  #create big dataset
+  max_dim = max(v)
+  cat("Generating data of", max_dim, "dimensions... \n")
+  data <- create_data_noisy(k, n, m, N)
+  cat("Completed data generation... \n")
+  
+  #get true labelling
+  true_labels <- data$tag
+  
+  #haven't done this in the other frames but just in case, drop the tag col 
+  data_no_tag <- data[, -which(names(data) == "tag"), drop = FALSE]
+  
+  scores <- numeric(length(v))
+  
+  # slice the dataset, kmeans it with true k, then add the arandi to scores vector
+  for (i in seq_along(v)) {
+    
+    current_slice <- data_no_tag[, 1:v[i], drop = FALSE]
+    kmobject <- kmeans(current_slice, centers = k, nstart = 10, iter.max = 25)
+    
+    scores[i] <- mclust::adjustedRandIndex(true_labels, kmobject$cluster)
+    
+    cat("Dimension: ", v[i], "gives arandi score: ", round(scores[i], 4), " \n")
+    
+  }
+  
+  # format data frame for output
+  result <- data.frame(
+    dimension = v,
+    score = scores
+  )
+  
+  return(result)
+  
+}
+
+```
+
+```{r Making the Data for the Plot}
+
+log_sequence <- unique(round(10^seq(1, 4, length.out = 30)))
+
+output <- scores_generator_arandi_noisy(k = 3, n = 10, m = 200, v = log_sequence, N = max(log_sequence))
+```
+
+```{r Plot, echo=TRUE}
+
+plot1 <- ggplot(data = output, mapping  = aes(dimension, score)) +
+  geom_point() +
+  geom_smooth() +
+  scale_x_log10() +
+  xlab("Dimension") +
+  ylab("Adjusted Rand Index") +
+  labs(title = "Adjusted Rand Index vs Dimension")
+
+plot1
+
+```
+
+
+```{r Splatter First Look}
+
+params <- newSplatParams()
+params
+
+sim <- splatSimulate(params, nGenes = 1000)
+sim
+
+counts(sim)[1:5, 1:5]
+
+head(rowData(sim))
+
+sim <- logNormCounts(sim)
+sim <- runPCA(sim)
+plotPCA(sim)
+
+
+```
+```{r Simluating Groups (AI Generated Nonsense for a Quick Look)}
+
+# we simulate
+sim.groups <- splatSimulate(
+    group.prob = c(0.5, 0.5),
+    method = "groups",
+    verbose = FALSE
+)
+sim.groups <- logNormCounts(sim.groups)
+sim.groups <- runPCA(sim.groups)
+plotPCA(sim.groups, colour_by = "Group")
+
+# Get the log-normalized counts matrix
+counts_matrix <- logcounts(sim.groups)
+
+# Transpose so rows are cells and columns are genes
+counts_t <- t(counts_matrix)
+
+# Run k-means (k=2 since you have 2 groups)
+km_result <- kmeans(counts_t, centers = 2, nstart = 25)
+
+# Add cluster assignments to the data
+sim.groups$kmeans_cluster <- factor(km_result$cluster)
+
+# Compare to true groups
+table(True = sim.groups$Group, Predicted = sim.groups$kmeans_cluster)
+
+# Calculate ARI
+library(mclust)
+ari <- adjustedRandIndex(sim.groups$Group, km_result$cluster)
+cat("ARI:", ari, "\n")
+
+# Visualize on PCA
+plotPCA(sim.groups, colour_by = "kmeans_cluster", shape_by = "Group")
+
+```
+
+ok so if we make k groups then run PCA then cluster on those, and do a similar thing where we are slicing by number of genes considered per cell, we can see if there is a similar dropoff in kmeans effectiveness to the arandi simulation above. 
+
+```{r KMeans on Splatter Simulations}
+
+# we begin under the assumption of equally-sized groups
+
+make_splatter_data <- function(k, n, m) {
+  # k is the number of groups we want
+  # n is the number of genes we want in total
+  # m is the number of cells we want to consider in our simulation
+  
+  spec_params <- newSplatParams(nGenes = n)
+  
+  groups <- splatSimulate(
+    params = spec_params,
+    batchCells = m,
+    group.prob = rep(1/k, k),
+    method = "groups",
+    verbose = FALSE
+  )
+  
+  return(groups)
+  
+}
+
+test <- make_splatter_data(4, 1000, 200)
+
+l_test <- logNormCounts(test)
+pca_test <- runPCA(l_test)
+pca_coordinates <- reducedDim(pca_test, "PCA")
+
+kmobject <- kmeans(pca_coordinates, centers = 4, nstart = 25)
+
+pca_test$kmeans_cluster <- factor(kmobject$cluster)
+
+arandi <- adjustedRandIndex(pca_test$Group, kmobject$cluster)
+cat("ARI score of:", arandi, " \n")
+
+plotPCA(pca_test, colour_by = "kmeans_cluster", shape_by = "Group")
+
+```
+
+```{r Pair Plots}
+
+# we will use base R pairs() or scaters plotReducedDim()
+# think that plotReducedDim is probably best
+
+# just from Claude as a first look
+plotReducedDim(pca_test,
+               dimred = "PCA",
+               ncomponents = 4,
+               colour_by = "kmeans_cluster",
+               shape_by = "Group")
+
+
+```
+```{r PCA Elbow Plot}
+
+# let's get it to do another sample / simulation of data
+# then, we want to plot 
+
+new_sample <- make_splatter_data(3, 10, 500)
+l_new_sample <- logNormCounts(new_sample)
+
+pc_new_sample <- runPCA(l_new_sample, ncomponents = 50)
+
+pc_vars <- attr(reducedDim(pc_new_sample, "PCA"), "percentVar")
+
+#make into a df for plotting
+pcdf <- data.frame(
+  PC = 1:length(pc_vars),
+  Variance = pc_vars,
+  CVariance = cumsum(pc_vars)
+)
+
+#now plot
+ggplot(data = pcdf, aes(x = PC)) +
+  geom_point(aes(y = Variance, color = "Individual"), size = 3) +
+  geom_line(aes(y = Variance, color = "Individual"), linewidth = 1) +
+  geom_point(aes(y = CVariance, color = "Cumulative"), size = 3) +
+  geom_line(aes(y = CVariance, color = "Cumulative"), linewidth = 1) +
+  scale_color_manual(values = c("Individual" = "steelblue", "Cumulative" = "red")) +
+  scale_x_continuous(breaks = pcdf$PC) +
+  labs(
+    title = "Variance Explained by PCs",
+    x = "Principal Component",
+    y = "Variance Explained (%)",
+    color = "Type"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    legend.position = "right"
+  )
+
+```
+
+Keep an eye on whether functions are defaulting to the 500 most variable genes
+Pair plots - prcomp in R after manual PCA or with splatter/ scater - the plotReducedDim from scater does it really well
+choosing number of principal components - justify decision process - we now want to get an elbow plot for variance explained by the 
+try DBScan and hierarchical 
+suerat - potential real dataset
+Louvain algorithm - can include in methodology
+
+
+Ok so first chunk will be getting the Louvain Algorithm in the overleaf document. We call this done for now. Second chunk will be pair plots. Once we have those, we reassess how much we can do. Ok cool, we try pair plots for now. Pair plots are fairly easy with that scater command. Now, we go for proportion of variance explained by the PCAs. If we have time, we use DBScan on the initial simulation.
+
+
+ok so for the next half hour we just want to do smoothing and non-AI ing of our pair plots and PCA elbow plot. Then , we want to polish the Louvain section in the paper. Then we're done. I think putting this all in a new rmd is good. 
+
+
+
+
+
+
+simulated
+simulated with splater
+Peripheral Blood Mononuclear Cells - this is the 'real' data that we can try to use?
+
+and then we can work on trying kmeans, dbscan, louvain
+visualising by pca, tsne + pca
+
+
+
+
+
+
+
+

@@ -1,0 +1,214 @@
+---
+title: "taketwo"
+output: html_document
+---
+
+```{r Load Packages, echo=FALSE, warning=FALSE, message=FALSE}
+
+#library(synthpop) #for generating synthetic data
+library(tidyverse) #for general stuff
+library(reshape2) #for the correlation heatmap
+library(factoextra) #for clustering
+library(cluster) #for clustering
+
+```
+
+We want to replicate the functions in ClusteringPractice.Rmd but with a couple of improvements.
+We will use our sample maker function to make 15 different big datasets and use slices of the same dataset to go up dimensions. 
+We will pass our function the true number of clusters so that we are not implicitly testing the performance of anything other than what we want to test. 
+
+This is the function from before which creates our n_Feature sample function.
+
+```{r Create Our n-Features Sample Function, echo=FALSE}
+
+# n features, m observations per feature. output will be a dataframe object
+sample_maker <- function(n, m) {
+  
+  df = data.frame(matrix(ncol = n + 1, nrow = m))
+  
+  #iterate through n features
+  for (i in 1:n) {
+    
+    #create vector of m randomly normally distributed values
+    temp_mean <- runif(1, min = -50, max = 50)
+    temp_sd <- runif(1, min = 0, max = 5)
+    
+    #generate vector of observations from the normal dist
+    temp_vector <- rnorm(m, temp_mean, temp_sd)
+    
+    df[[paste0("var", i)]] <- temp_vector
+  }
+  
+  df[["tag"]] <- as.character(i) #lets us have access to true cluster ID for adj rand score
+  
+  return(df)
+  
+}
+```
+
+
+
+```{r Create Our Dataset Creator Function, echo=FALSE}
+
+# k is the number of samples / clusters we want to add, n and m are passed to sample_maker
+create_data <- function(k, n, m) {
+  
+  # initialise empty list
+  frame_list <- list()
+  
+  # iterate through number of samples then add it to the list
+  for (i in 1:k) {
+    frame_list[[i]] <- sample_maker(n = n, m = m)
+  }
+  
+  #combine list into one dataframe using do.call
+  df <- data.frame(do.call(rbind, frame_list))
+  
+  #scale df
+  df_scaled <- df |>
+    #na.omit() |>
+    select(where(is.numeric)) |>
+    scale()
+  
+  return(df_scaled)
+  
+}
+
+```
+
+
+
+```{r Make Big Dataframes, echo=FALSE}
+
+big_N <- 100 # max dimension
+big_M <- 100 # points per sample
+big_K <- 25 # samples per df
+repetitions <- 15
+
+df_list <- replicate(repetitions, create_data(big_K, big_N, big_M), simplify = FALSE) #create list of dataframes
+
+```
+
+So we have our big list of dataframes. Now we want to assess the clustering performance against increasingly 'wide' slices of these dataframes, and averaging their results across the 15. We need a new clustering function which this time will be able to access the true cluster number. We will then pass it to our silhouette evaluation function, and plot it against the dimension. 
+
+```{r Clustering Function with true number}
+
+clustering_true <- function(df_list, big_K) {
+  #takes a list of data frames, and kmeans clusters on them with the true number of clusters taken as a param
+  
+  kmobject_list <- lapply(df_list, kmeans, centers = big_K) # pass the centers param in the lapply call
+  
+  return(kmobject_list)
+  
+}
+
+```
+
+We bring in our clustering evaluation function from the previous rmd file.
+
+```{r Create Cluster Evaluation Function, echo=FALSE}
+
+evaluate_kmeans_object <- function(kmobject, ogdata) {
+  #our function takes the output of a kmeans function from base R, along with the original data. 
+  #it returns the mean silhouette score as a measure of clustering quality
+  #note this means we will need a separate function to take the data and choose the correct cluster number,
+  #then perform the clustering
+  
+  dist_matrix <- dist(ogdata) # create distance matrix
+  
+  sil <- silhouette(kmobject$cluster, dist_matrix)
+  
+  
+  return(mean(sil[, 3]))
+}
+
+```
+
+Where here we will lapply it across our list of kmeans objects and our list of dataframes. except we've forgotten to slice over increasing numbers of dimensions so are accidentally just working on the whole thing. need to fix that.
+
+
+```{r Proof that it can spit out sil scores}
+
+#df_list is our list of data frames
+
+kmobject_list <- clustering_true(df_list, big_K)
+
+#then we want to apply the evaluation function to each index of df_list and kmobject list
+
+sil_list <- mapply(evaluate_kmeans_object,
+                   kmobject_list,
+                   df_list,
+                   SIMPLIFY = FALSE)
+
+```
+
+ok so this is the stage we've reached for all 100 dimensions. we just need to make this same workflow happen for a specified vector of dimensions and then we can scale up, down, logarithmically, as we like.
+
+then next improvement is to go to adjusted rand score, for which we need true cluster IDs on each point. 
+
+then next improvement is to try on more realistic data.
+
+then we try on actual data. at some point along the way we consider other clustering methods, when kmeans begins not to be that great probably.
+
+So if we get from df_list to a list of lists that we can take elements of. It will be a list of 15-lists, and to begin with we will go 5-100 by 5s, incrementing dimensions.
+
+```{r List-of-lists maker}
+
+#for maximum verstility we want to be able to pass it a vector of slices that we will take of our df_list full dataframes. 
+
+divide_list <- function(df_list, dim_vector) {
+  
+  divided_list <- vector("list", length(dim_vector)) #empty list
+  
+  for (i in 1:length(dim_vector)) {
+    
+    divided_list[[i]] <- lapply(df_list, function(df) df[, 1:dim_vector[i]])
+    
+  }
+  
+  return(divided_list)
+  
+}
+
+```
+
+Now we potentially have enough to make a plot?
+
+```{r Plot?}
+
+#goal is a list of sil$average scores. 
+
+#we have df_list, we want to divide it up
+dims <- seq(5, 100, by = 5)
+list_of_lists <- divide_list(df_list, dims)
+
+#now we pass the kmeans thing the true clusters number and evaluate them, we should get a list of 15-lists of kmeans objects.then we go silhouette scores, then we go plot.
+
+list_of_kmobjects <- lapply(list_of_lists, clustering_true, big_K = big_K)
+
+# list_of_sil_means <- lapply(list_of_kmobjects, evaluate_kmeans_object, ogdata = list_of_lists)
+
+# list_of_sil_means <- map2(list_of_kmobjects, list_of_lists,
+#                           ~ evaluate_kmeans_object(.x, ogdata = .y))
+
+list_of_sil_means <- Map(function(list_km, list_og) {
+  Map(evaluate_kmeans_object, list_km, ogdata = list_og)
+}, list_of_kmobjects, list_of_lists)
+
+avg_sil_scores <- sapply(list_of_sil_means, function(results) {
+  mean(unlist(results)) # average across the 15
+})
+
+sd_sil_scores <- sapply(list_of_sil_means, function(results) {
+  sd(unlist(results)) # average across the 15
+})
+
+plot(dims, avg_sil_scores)
+
+plot(dims, sd_sil_scores)
+
+```
+
+
+
+

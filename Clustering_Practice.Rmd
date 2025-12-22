@@ -1,0 +1,320 @@
+---
+title: "Clustering_Practice"
+author: "Fergus"
+date: "2025-10-07"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Generating Data From Normal Distributions - A Simple Example
+
+We begin.
+
+```{r Load Packages, echo=FALSE, warning=FALSE, message=FALSE}
+
+#library(synthpop) #for generating synthetic data
+library(tidyverse) #for general stuff
+library(reshape2) #for the correlation heatmap
+library(factoextra) #for clustering
+library(cluster) #for clustering
+
+```
+
+```{r Data Creation, echo=FALSE}
+#We'll do 3 normal distributions with different means, different variances, 2 features. Then we tag the observations based on whether they come from A, B or C. Then, we combine them to one df, and plot them with and without colour code clustering. That'll be step 1. 
+
+make_df <- function(n_samples, features_params, tag) {
+  #we have that features_params is a list of lists of name mean sd
+  
+  #initialise df
+  df <- data.frame(matrix(ncol = 0, nrow = n_samples))
+  
+  #iterate through params and create columns to our specifications
+  for (params in features_params) {
+    
+    feature_name <- params[[1]]
+    mean <- params[[2]]
+    sd <- params[[3]]
+    
+    df[[feature_name]] <- rnorm(n_samples, mean = mean, sd = sd)
+    
+  }
+  
+  df[["Tag"]] <- tag
+  
+  #output our df
+  return(df)
+}
+
+
+
+#create our desired dfs
+feats_A <- list(
+  list("var1", 10, 5),
+  list("var2", 100, 15)
+)
+feats_B <- list(
+  list("var1", 48, 10),
+  list("var2", 3, 20)
+)
+feats_C <- list(
+  list("var1", 25, 20),
+  list("var2", 185, 10)
+)
+
+data_A <- make_df(200, features_params = feats_A, tag = "A")
+data_B <- make_df(200, features_params = feats_B, tag = "B")
+data_C <- make_df(200, features_params = feats_C, tag = "C")
+
+#now we need to combine these DFs
+data <- rbind(data_A, data_B, data_C)
+
+
+```
+
+```{r Plotting Our Data, echo=FALSE}
+
+plot1 <- ggplot(data = data, mapping = aes(x = var1, y = var2)) +
+  geom_point() +
+  theme_minimal() +
+  xlab("Variable 1") +
+  ylab("Variable 2") +
+  labs(title = "Scatter Plot, Pre-Clustering",
+       subtitle = "Data from 3 synthetic normally distributed samples")
+
+plot1
+
+```
+```{r How Many Clusters for the Simple Example, echo=FALSE, warning=FALSE}
+
+#remove NAs and scale numeric variables
+data_scaled <- data |> 
+  na.omit() |> 
+  select(where(is.numeric)) |> 
+  scale()
+
+#generate elbow plot
+fviz_nbclust(data_scaled, kmeans, method = "wss")
+
+#get gap stat plot as well
+gap_stat <- clusGap(data_scaled,
+                    FUN = kmeans, 
+                    nstart = 25,
+                    K.max = 10,
+                    B = 50)
+
+fviz_gap_stat(gap_stat)
+
+```
+## What is the Gap Statistic?
+I've seen the elbow plot before, which give the total within-group sum of squared residuals. From https://www.statology.org/k-means-clustering-in-r/, it's given as a comparison between the "total intra-cluster variation for different values of k with their expected values for a distribution with no clustering".
+
+Gap statistic calculation given: 
+$$
+Gap(k) = \frac{1}{B} \Sigma^B_{b=1} (W^b_k - W_k)
+$$
+Where $W_k$ the WSS for the actual clusters; $W^b_k$ the WSS for the reference data with k clusters; $B$ the number of reference datasets used.
+
+```{r Clustering and Labelling the Simple Example, echo=FALSE}
+
+# can make reproducible with set.seed later if needs be
+
+# kmeans clustering with 3 clusters
+kmeans <- kmeans(data_scaled, centers = 3, nstart = 25)
+
+# visualise
+fviz_cluster(kmeans, data = data_scaled)
+
+```
+
+## How Does the Quality of the Clustering Change With Dimension?
+
+First order of business is getting a function that can give us a number of observations normally distributed on n features. By generalising up to n features, we choose to drop the ability to specify the mean and sd of these normal dists. 
+
+Then use this as a helper function in a function that'll output a dataset of k x m observations (k samples, m observations per sample) on n features. Once we have this we can visualise it in several ways if we want, before doing some KMeans clustering on it and producing a graph that hopefully shows the curse of dimensionality. 
+
+```{r Create Our n-Features Sample Function, echo=FALSE}
+
+# n features, m observations per feature. output will be a dataframe object
+sample_maker <- function(n, m) {
+  
+  df = data.frame(matrix(ncol = n, nrow = m))
+  
+  #iterate through n features
+  for (i in 1:n) {
+    
+    #create vector of m randomly normally distributed values
+    temp_mean <- runif(1, min = -50, max = 50)
+    temp_sd <- runif(1, min = 0, max = 5)
+    
+    #generate vector of observations from the normal dist
+    temp_vector <- rnorm(m, temp_mean, temp_sd)
+    
+    df[[paste0("var", i)]] <- temp_vector
+  }
+  
+  return(df)
+  
+}
+```
+
+```{r Create Our Dataset Creator Function, echo=FALSE}
+
+# k is the number of samples / clusters we want to add, n and m are passed to sample_maker
+create_data <- function(k, n, m) {
+  
+  # initialise empty list
+  df_list <- list()
+  
+  # iterate through number of samples then add it to the list
+  for (i in 1:k) {
+    df_list[[i]] <- sample_maker(n = n, m = m)
+  }
+  
+  #combine list into one dataframe using do.call
+  df <- data.frame(do.call(rbind, df_list))
+  
+  #scale df
+  df_scaled <- df |>
+    #na.omit() |>
+    select(where(is.numeric)) |>
+    scale()
+  
+  return(df_scaled)
+  
+}
+
+```
+
+```{r Plotting from our Functions when n = 2, echo=FALSE}
+
+#creating a 2-dim dataset from our functions, with 300 observations and 5 clusters
+example <- create_data(5, 2, 400)
+
+ggplot(data = example, mapping  = aes(x = var1, y = var2)) +
+  geom_point() +
+  xlab("Variable 1") + 
+  ylab("Variable 2") +
+  labs(title = "Example Synthetic Dataset")
+
+#What to do from here? Potentially, we could make a function that does PCA and plots C1 vs C2 for visualisation?
+#update: yes that is what we should do
+
+#first though is a function that clusters, assesses cluster quality, returns that metric. Then we set the random seed and plot cluster quality metric against dimensions. 
+
+```
+
+```{r Create Cluster Evaluation Function, echo=FALSE}
+
+evaluate_kmeans_object <- function(kmobject, ogdata) {
+  #our function takes the output of a kmeans function from base R, along with the original data. 
+  #it returns the mean silhouette score as a measure of clustering quality
+  #note this means we will need a separate function to take the data and choose the correct cluster number,
+  #then perform the clustering
+  
+  dist_matrix <- dist(ogdata) # create distance matrix
+  
+  sil <- silhouette(kmobject$cluster, dist_matrix)
+  
+  
+  return(sil)
+}
+
+```
+
+```{r Create Optimised Clustering Function, echo=FALSE}
+# a function that takes the data, computes a best number of clusters based on gap statistic, then clusters
+
+decent_cluster_number <- function(ogdata) {
+  # ogdata is the data
+  
+  gap_result <- clusGap(ogdata, 
+                        FUNcluster = stats::kmeans, 
+                        iter.max = 100,
+                        nstart = 25,
+                        K.max = 10,
+                        B = 20)
+  
+  #compute the best number of clusters by checking which is the first one where the improvement is within
+  #one standard deviation. Note this does apparently favour smaller clusters but that's not necessarily a 
+  #disadvantage of the method
+  
+  #get best cluster number
+  best_cluster_number <- maxSE(gap_result$Tab[, "gap"], gap_result$Tab[, "SE.sim"], method = "firstSEmax")
+  
+  kmobject <- kmeans(x = ogdata, centers = best_cluster_number, iter.max = 100 , nstart = 25)
+  return(kmobject)
+}
+
+```
+
+Now we have the tools to get a plot of average silhouette score vs dimension. 
+
+```{r Make Df Function}
+
+#we want to generate our dataframe which is just a vector of dimension and silhouette score. 
+#sounds like a function is probably helpful
+
+
+#max_dim is maximum dimsension number, starting at 2
+#k is the number of clusters per sample
+#m is the number of observations per sample
+#r is the number of repetitions per dimension number n that we average over, creating a new sample each time
+make_df <- function(max_dim, k, m, r) {
+  
+  #initialise empty dataframe
+  output <- tibble(
+    dimension = numeric(),
+    silhouette = numeric()
+  )
+  
+  #big for loop starts, adds a row to the df per dimension number
+  for (n in 2:max_dim) {
+    
+    total_silhouette <- 0 #just a counter variable
+    
+    #mini for loop starts, gets the silhouette object r times and adds its avg sil score to counter variable
+    for (i in 1:r) {
+      
+      tempdata <- create_data(k, n, m) # make data
+      kmobject <- decent_cluster_number(tempdata) # how many centres? then return kmobject
+      
+      tempsil <- evaluate_kmeans_object(kmobject, tempdata) #get silhouette score
+      
+      total_silhouette <- total_silhouette + mean(tempsil[, 3]) # increment total_silhouette by avg sil score
+      
+    }
+    
+    avg_sil <- total_silhouette / r #average it over the r repetitions
+    
+    output <- output |> 
+      add_row(dimension = n, silhouette = avg_sil) # add that average to the df
+    
+  }
+  
+  
+  return(output)
+  
+}
+
+```
+
+
+```{r Plot}
+
+#making some changes so that it's quicker to run - less bootstrapping, less averaging silhouette scores
+#namely B from 50 to 20, r from 10 to 1. But max_dim up to 100, k up to 
+test <- make_df(100, 25, 100, 1)
+
+```
+```{r Actually Plot}
+
+
+ggplot(data = test, mapping = aes(x = dimension, y = silhouette)) +
+  geom_point()
+
+
+```

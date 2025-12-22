@@ -1,0 +1,93 @@
+---
+title: "ScatterOne"
+output: html_document
+---
+
+First goes at all the Scatter stuff. For now: runPCA, plotReducedDim, pair plots, PCA elbow plots. 
+
+```{r Libraries}
+
+library(dplyr)
+library(scater)
+library(splatter)
+
+```
+
+
+
+```{r functions}
+
+# we begin under the assumption of equally-sized groups
+
+make_splatter_data <- function(k, n, m) {
+  # k is the number of groups we want
+  # n is the number of genes we want in total
+  # m is the number of cells we want to consider in our simulation
+  
+  spec_params <- newSplatParams(nGenes = n)
+  
+  groups <- splatSimulate(
+    params = spec_params,
+    batchCells = m,
+    group.prob = rep(1/k, k),
+    method = "groups",
+    verbose = FALSE
+  )
+  
+  # run PCA on it before we plot since we want to be able to re run the plot function and not re do PCA each time. 
+  groups <- groups |> 
+    logNormCounts() |> 
+    runPCA()
+  
+  return(groups)
+  
+}
+
+
+
+make_pair_plot <- function(data, n) {
+  
+  
+  
+  plot <- plotReducedDim(object = data,
+                         dimred = "PCA",
+                         ncomponents = n
+                         # colour_by = "kmeans_cluster",
+                         # shape_by = "Group"
+  )
+  
+  return(plot)
+  
+}
+
+```
+
+Make pair plots:
+
+```{r Pair Plots}
+
+sample_data <- make_splatter_data(4, 1000, 200)
+plot <- make_pair_plot(sample_data, 4)
+
+plot
+
+```
+
+```{r Loading in the PBMC Data}
+
+library(Seurat)
+
+# 2700 single cells that were sequenced on the Illumina NextSeq 500
+pmbc.data <- Read10X("filtered_gene_bc_matrices/hg19/")
+
+pbmc <- CreateSeuratObject(counts = pmbc.data, project = "pbmc3k", min.cells = 3, min.features = 200)
+
+pbmc
+
+# Visualize QC metrics as a violin plot
+VlnPlot(pbmc, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+
+```
+
+
+

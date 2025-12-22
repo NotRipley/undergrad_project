@@ -1,0 +1,135 @@
+---
+title: "Curse_of_Dimensionality"
+output: html_document
+---
+
+We generate our clusters on centres that are (-2, -2, ....), (0, 0, ...), etc
+We use between ss vs within ss as our metric of clustering quality
+To begin with, I'll pass it the true number of clusters. 
+We will use the same strategy and begin by generating big dataframes and then slicing them. 
+
+```{r Libraries}
+
+library(tidyverse) #for general stuff
+library(factoextra) #for clustering
+library(cluster) #for clustering
+
+```
+
+
+
+```{r Define Functions}
+
+
+
+sample_maker_better <- function(n, m, iteration) {
+  
+  temp_mean <- iteration * 2
+  temp_sd <- 2
+  
+  mat <- matrix(rnorm(n*m, temp_mean, temp_sd), nrow = m, ncol = n)
+  
+  df <- as.data.frame(mat)
+  names(df) <- paste0("var", seq_len(n))
+  df$tag <- iteration
+  
+  return(df)
+}
+
+
+
+create_data <- function(k, n, m) {
+  
+  # initialise empty list
+  frame_list <- list()
+  
+  # iterate through number of samples then add it to the list
+  for (i in 1:k) {
+    frame_list[[i]] <- sample_maker_better(n = n, m = m, iteration = i)
+    print(paste("MADE DATASET", i, "OF", k))
+  }
+  
+  #combine list into one dataframe using do.call
+  df <- data.frame(do.call(rbind, frame_list))
+  
+  return(df)
+  
+}
+
+
+
+library(parallel)
+
+# AI generated function
+scores_generator_parallel <- function(k, n, m, v, cores = 7) {
+  
+  max_dim <- max(v)
+  cat("Generating data of", max_dim, "dimensions... \n")
+  data <- create_data(k, max_dim, m)
+  cat("Completed data generation... \n")
+  
+  cat("Running k-means in parallel on", cores, "cores... \n")
+  
+  cl <- makeCluster(cores)
+  
+  # Export everything needed
+  clusterExport(cl, varlist = c("data", "k"), envir = environment())
+  
+  scores <- parSapply(cl, v, function(dim) {
+    slice_data <- data[, 1:dim, drop = FALSE]
+    kmobject <- kmeans(slice_data, centers = k, nstart = 25, iter.max = 50)
+    return(kmobject$betweenss / kmobject$totss)
+  })
+  
+  stopCluster(cl)
+  
+  return(data.frame(dimensions = v, score = scores))
+}
+
+
+
+scores_generator <- function(k, n, m, v) {
+  
+  max_dim <- max(v)
+  cat("Generating data of", max_dim, "dimensions... \n")
+  data <- create_data(k, max_dim, m)
+  cat("Completed data generation... \n")
+  
+  scores <- numeric(length(v))
+  
+  for (i in seq_along(v)) {
+    
+    current_slice <- data[, 1:v[i], drop = FALSE]
+    
+    kmobject <- kmeans(current_slice, centers = k, nstart = 10, iter.max = 25, algorithm = "Lloyd")
+    scores[i] <- kmobject$betweenss / kmobject$totss
+    
+    cat("Dimension:", v[i], "gives Score:", round(scores[i], 4), " \n")
+  }
+  
+  result <- data.frame(
+    dimensions = v,
+    score = scores
+  )
+  
+  return(result)
+  
+}
+
+```
+
+```{r Making the Data for the Plot}
+
+log_sequence <- unique(round(10^seq(1, 6, length.out = 25)))
+
+thing <- scores_generator_parallel(k = 3, n = max(log_sequence), m = 100, v = log_sequence, cores = 7)
+```
+
+
+
+```{r Plot}
+
+
+
+```
+
