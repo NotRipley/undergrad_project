@@ -19,6 +19,7 @@ library(cluster) #for clustering
 library(mclust) #for more clustering specifically the arandi
 library(splatter) #for simulated single cell RNA sequencing count data
 library(scater)
+library(dbscan)
 
 ```
 
@@ -136,6 +137,17 @@ plot1 <- ggplot(data = output, mapping  = aes(dimension, score)) +
   labs(title = "Adjusted Rand Index vs Dimension")
 
 plot1
+
+```
+
+
+try DBScan and hierarchical 
+
+```{r Clustering Simulated Data with DBScan}
+
+# we will use DBScan to cluster the data from our simple simulation. Then we will start by evaluating it with just arandi again to begin with, then potentially use gap stat and silhouette to see if they concur. 
+
+# aim here is NOT to demonstrate the curse of dimensionality again - this is simple to do if needed, but what we want is to generate a few datasets and check how DBScan does compared to kmeans. then, we'll figure out which visualisation is the most appropriate.
 
 ```
 
@@ -293,9 +305,8 @@ ggplot(data = pcdf, aes(x = PC)) +
 ```
 
 Keep an eye on whether functions are defaulting to the 500 most variable genes
-Pair plots - prcomp in R after manual PCA or with splatter/ scater - the plotReducedDim from scater does it really well
-choosing number of principal components - justify decision process - we now want to get an elbow plot for variance explained by the 
-try DBScan and hierarchical 
+
+
 suerat - potential real dataset
 Louvain algorithm - can include in methodology
 
