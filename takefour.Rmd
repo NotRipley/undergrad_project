@@ -19,7 +19,7 @@ library(cluster) #for clustering
 library(mclust) #for more clustering specifically the arandi
 library(splatter) #for simulated single cell RNA sequencing count data
 library(scater)
-library(dbscan)
+library(fpc)
 
 ```
 
@@ -148,6 +148,41 @@ try DBScan and hierarchical
 # we will use DBScan to cluster the data from our simple simulation. Then we will start by evaluating it with just arandi again to begin with, then potentially use gap stat and silhouette to see if they concur. 
 
 # aim here is NOT to demonstrate the curse of dimensionality again - this is simple to do if needed, but what we want is to generate a few datasets and check how DBScan does compared to kmeans. then, we'll figure out which visualisation is the most appropriate.
+
+#let's use the same kinda data as the above, then write a dbscan clustering algorithm on them. 
+
+data_for_dbs <- create_data_noisy(5, 50, 500, 0)
+
+# our parameters are eps, which is the max distance over which we want to scan, and minPts, the min number of pts in a cluster. 
+
+kNNdistplot(data_for_dbs, k = 3) # from this we see a good eps value
+
+set.seed(1618)
+
+f <- fpc::dbscan(data_for_dbs, eps = 14, MinPts = 4)
+
+f
+
+# potentially, we should come up with a different data generation method for this. the evenly spaced clusters aren't really working. 
+
+# Generate sample data with clusters
+data <- rbind(
+  matrix(rnorm(100, mean = 0), ncol = 2),
+  matrix(rnorm(100, mean = 3), ncol = 2),
+  matrix(rnorm(100, mean = 6), ncol = 2)
+)
+
+# Run DBSCAN
+db <- dbscan::dbscan(data, eps = 0.5, minPts = 5)
+
+# Results
+print(db)
+table(db$cluster)  # Count points in each cluster
+
+# Visualize
+plot(data, col = db$cluster + 1, pch = 20, cex = 1.5)
+legend("topright", legend = unique(db$cluster), 
+       col = unique(db$cluster) + 1, pch = 20)
 
 ```
 
