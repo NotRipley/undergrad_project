@@ -184,7 +184,106 @@ plot(data, col = db$cluster + 1, pch = 20, cex = 1.5)
 legend("topright", legend = unique(db$cluster), 
        col = unique(db$cluster) + 1, pch = 20)
 
+# we will use fvizcluster from factoextra for data visualisation of the clustering. 
+# what would be amazing would be to recreate some of those plots where dbscan clearly outperforms kmeans, and then go for a high dim example and show (hopefully) that it fails before kmeans? or fails on noisy data, sooner and more severely than kmeans. is my prediction at least. 
 ```
+```{r Visualising the Comparison}
+
+# we want to make several functions, whereby I can easily generate different types of data. I think I want my standard very spherical one, and then one w here the clusters are very overlapped so that dbscan might be better and sorting them based on density. i hope?
+
+# wait ok our thing is we want a 2 x 6 approach. I'll have different datasets but functionally I want a core function per algorithm (KMeans, DBScan, maybe more in future) that takes and assesses a given dataset and then outputs a factoextra fvizclust thing (or maybe just the first two PCs), along with which score metric we want. 
+
+# ok, to start, i just want the same graph as the first one, on dbscan instead of kmeans. so we copy paste the function we want to change, here:
+
+# uses create_data_noisy to generate adjusted rand index scores per a passed vector of dimensions
+scores_generator_arandi_noisy <- function(k, n, m, N, v) {
+  # k - number of centres
+  # n - number of meaningful dimensions
+  # m - observations per centre
+  # N - number of noise dimensions
+  # v - vector of dimension numbers to take arandi score at
+  
+  #create big dataset
+  max_dim = max(v)
+  cat("Generating data of", max_dim, "dimensions... \n")
+  data <- create_data_noisy(k, n, m, N)
+  cat("Completed data generation... \n")
+  
+  #get true labelling
+  true_labels <- data$tag
+  
+  #haven't done this in the other frames but just in case, drop the tag col 
+  data_no_tag <- data[, -which(names(data) == "tag"), drop = FALSE]
+  
+  scores <- numeric(length(v))
+  
+  # slice the dataset, kmeans it with true k, then add the arandi to scores vector
+  for (i in seq_along(v)) {
+    
+    current_slice <- data_no_tag[, 1:v[i], drop = FALSE]
+    kmobject <- kmeans(current_slice, centers = k, nstart = 10, iter.max = 25)
+    
+    scores[i] <- mclust::adjustedRandIndex(true_labels, kmobject$cluster)
+    
+    cat("Dimension: ", v[i], "gives arandi score: ", round(scores[i], 4), " \n")
+    
+  }
+  
+  # format data frame for output
+  result <- data.frame(
+    dimension = v,
+    score = scores
+  )
+  
+  return(result)
+  
+}
+
+
+# and we're definitely going to use a better name this time
+
+simple_sample_dbscan <- function(k, n, M, N, v, eps, MinPts) {
+  
+  #create big dataset
+  max_dim = max(v)
+  cat("Generating data of", max_dim, "dimensions... \n")
+  data <- create_data_noisy(k, n, M, N)
+  cat("Completed data generation... \n")
+  
+  #get true labelling
+  true_labels <- data$tag
+  #haven't done this in the other frames but just in case, drop the tag col 
+  data_no_tag <- data[, -which(names(data) == "tag"), drop = FALSE]
+  
+  scores <- numeric(length(v))
+  
+  # slice the dataset, kmeans it with true k, then add the arandi to scores vector
+  for (i in seq_along(v)) {
+    
+    current_slice <- data_no_tag[, 1:v[i], drop = FALSE]
+    dbscobject <- fpc::dbscan(current_slice, eps = eps, MinPts = MinPts)
+    
+    scores[i] <- mclust::adjustedRandIndex(true_labels, dbscobject$cluster)
+    
+    cat("Dimension: ", v[i], "gives arandi score: ", round(scores[i], 4), " \n")
+    
+  }
+  
+  # format data frame for output
+  result <- data.frame(
+    dimension = v,
+    score = scores
+  )
+  
+  return(result)
+  
+  
+  
+}
+
+
+```
+
 
 
 ```{r Splatter First Look}
@@ -358,7 +457,7 @@ ok so for the next half hour we just want to do smoothing and non-AI ing of our 
 
 simulated
 simulated with splater
-Peripheral Blood Mononuclear Cells - this is the 'real' data that we can try to use?
+Peripheral Blood Mononuclear Cells - this is the 'real' data that we can try to use.
 
 and then we can work on trying kmeans, dbscan, louvain
 visualising by pca, tsne + pca
