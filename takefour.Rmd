@@ -242,7 +242,7 @@ scores_generator_arandi_noisy <- function(k, n, m, N, v) {
 
 # and we're definitely going to use a better name this time
 
-simple_sample_dbscan <- function(k, n, M, N, v, eps, MinPts) {
+simple_sample_dbscan <- function(k, n, M, N, v) {
   
   #create big dataset
   max_dim = max(v)
@@ -261,7 +261,12 @@ simple_sample_dbscan <- function(k, n, M, N, v, eps, MinPts) {
   for (i in seq_along(v)) {
     
     current_slice <- data_no_tag[, 1:v[i], drop = FALSE]
-    dbscobject <- fpc::dbscan(current_slice, eps = eps, MinPts = MinPts)
+    
+    minpts = ncol(current_slice)
+    
+    eps <- quantile(dbscan::kNNdist(current_slice, k = minpts), 0.90)
+    
+    dbscobject <- fpc::dbscan(current_slice, eps = eps, MinPts = minpts)
     
     scores[i] <- mclust::adjustedRandIndex(true_labels, dbscobject$cluster)
     
@@ -277,9 +282,34 @@ simple_sample_dbscan <- function(k, n, M, N, v, eps, MinPts) {
   
   return(result)
   
-  
-  
 }
+
+
+```
+
+
+
+```{r Trying simple sample dbscan}
+
+log_sequence <- unique(round(10^seq(1, 4, length.out = 30)))
+
+output_db <- simple_sample_dbscan(k = 5, n = 10, M = 200, v = log_sequence, N = max(log_sequence))
+
+plot1 <- ggplot(data = output, mapping  = aes(dimension, score)) +
+  geom_point() +
+  geom_smooth() +
+  scale_x_log10() +
+  xlab("Dimension") +
+  ylab("Adjusted Rand Index") +
+  labs(title = "Adjusted Rand Index vs Dimension")
+
+plot1
+
+# what we find is that i think some auto - generation of eps and minpts is essential. need to do some reading on that.
+
+# minpts should be equal or greater than the number of dimensions. as a rule of thumb, go with double. 
+
+# we go with KNN methods for choosing eps. the KNN graph is the cubic-looking thing of KNN distance vs observations
 
 
 ```
