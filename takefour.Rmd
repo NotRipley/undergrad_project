@@ -1,15 +1,28 @@
 ---
-title: "takefour"
+title: "Working Draft"
 output: html_document
 ---
 
-This one is the centres with predefined stuff then noise. So we generate our samples quickly and append a bunch of noise to them. We keep the tag on them and use Asjusted Rand Index. We want to plot 10^6 dimensions so we can observe the curse of dimensionality. So that we aren't testing the quality of a clustering metric, we are using the true number of clusters. However, if this doesn't work, we can try not to give it the true number of clusters and instead get it to guess with silhouette, gap stat or elbow plot. 
+### Types of Dataset
 
-Not being stupid, we copy in all of takethree. We only need to change the data creation functions to be random noise after a certain number of dimensions.
+Denote by the word 'Simple', a completely artificial, arbitrary dataset created by me. Just for the purposes of testing the performance of algorithms/metrics across generation method and across dimension, for example. 
 
-We want to clear the workflow and comment code for this one, then save the html and send it to Cecilia. 
-Then we make a start on the Splatter simulations. 
-If we get to a good point with the code theres lots more to do so we worry about that when we get there. 
+So we have Simple Separated Data, and Simple Overlapping Data. I think then, we also want Equal-In (spherical) and Equal-Out (equal variance between clusters). So that's 6 different types of data.
+
+Then, we want to get Splatter simulated data up to a similar level of understanding as that top thing there. But the fact that we have these 6 means that it's likely we're going to have 
+
+
+### Types of Index / Metric
+
+Silhouette
+Gap statistic
+
+### Types of Algorithm
+
+KMeans
+DBScan
+Louvain?
+
 
 ```{r Libraries}
 
@@ -18,8 +31,9 @@ library(factoextra) #for clustering
 library(cluster) #for clustering
 library(mclust) #for more clustering specifically the arandi
 library(splatter) #for simulated single cell RNA sequencing count data
-library(scater)
-library(fpc)
+library(scater) # for the realistic dataset?
+library(fpc) # this and dbscan for dbscan clustering.
+library(dbscan)
 
 ```
 
@@ -27,11 +41,26 @@ library(fpc)
 
 ```{r Define Functions}
 
-# Creates a centre of dimension n and adds N dimensions of gaussian noise
-sample_maker_noisy <- function(n, m, iteration, N) {
+# m - number of rows
+# n - number of dimensions for the dataset (number of columns)
+# N - noise dimensions to be added to the dataset 'in post' of the generation
+# Overlap - boolean variable, whether the variances of each cluster should be inflated s.t. they overlap, or should they be well-separated?
+# Equal-In - boolean - should my clusters be spherical, or 'ovoid'?
+# Equal-Out - equal variance between clusters, or randomly allocate?
+
+simple_data <- function(m, n, N, overlap, equalin, equalout) {
+  
+  
+  
+}
+
+
+# Creates a centre of dimension n, centred at the n-dim point where each entry 
+# is x, and adds N dimensions of gaussian noise
+sample_maker_noisy <- function(n, m, x, N) {
   # n - useful features
   # m - observations per feature
-  # iteration - counter variable that sets the location of the centre
+  # x - symmetrical location of the centre
   # N - number of noise dimensions
   
   temp_mean <- iteration*1.5
@@ -372,6 +401,9 @@ plotPCA(sim.groups, colour_by = "kmeans_cluster", shape_by = "Group")
 ```
 
 ok so if we make k groups then run PCA then cluster on those, and do a similar thing where we are slicing by number of genes considered per cell, we can see if there is a similar dropoff in kmeans effectiveness to the arandi simulation above. 
+
+
+Now, we want to format this rmd doc properly so that we can really see what we have. Go back through the KMeans simple sim and streamline it. We want a function that makes a dataset and a function that scores it. Then, we want to make a new section for the splatter data creation. That's pretty much all we have for now. Then, we can start to fill in the gaps, once it's formatted correctly. 
 
 ```{r KMeans on Splatter Simulations}
 
