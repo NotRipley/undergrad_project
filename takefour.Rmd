@@ -48,7 +48,6 @@ library(dbscan)
 # Overlap - boolean variable, whether the variances of each cluster should be inflated s.t. they overlap, or should they be well-separated?
 # Equal-In - boolean - should my clusters be spherical, or 'ovoid'?
 # Equal-Out - equal variance between clusters, or randomly allocate? LEAVE FOR NOW
-
 simple_data <- function(m, n, N, k, overlap, equalin) {
   
   # make sure nothing's gonna break
@@ -66,7 +65,8 @@ simple_data <- function(m, n, N, k, overlap, equalin) {
   }
   
   if (equalin == FALSE) {
-    p_var <- matrix(rnorm(k, p_var[[1]], 0.25),  nrow = 1, ncol = k) # might need slight adjusting
+    p_var <- abs(matrix(rnorm(k, p_var[[1]], 0.25),  nrow = 1, ncol = k)) # might need slight adjusting
+    
   }
   
   #if (equalout)
@@ -78,16 +78,22 @@ simple_data <- function(m, n, N, k, overlap, equalin) {
     unmerged[[i]] <- matrix(rnorm(m*n, i, p_var[[i]]), nrow = m, ncol = n)
   }
   
-  merged <- do.call(rbind, unmerged)
+  merged <- do.call(rbind, unmerged) # smush the matrices together
   
-  return(as.data.frame(merged))
+  # at this point, merged is just a matrix. We want to add N columns of normally-distributed noise. 
+  
+  noise <- matrix(rnorm(N*m*k, mean = 0, sd = 0.3), nrow = m*k, ncol = N) # we choose a sd for these noise dimensions that isn't bigger or smaller than any of the clusters would be, because I think that could create more problems. 
+  
+  merged_2 <- cbind(merged, noise) # chuck em together and return result
+  
+  return(as.data.frame(merged_2))
   
 }
 
 
 # Creates a centre of dimension n, centred at the n-dim point where each entry 
 # is x, and adds N dimensions of gaussian noise
-sample_maker_noisy <- function(n, m, x, N) {
+sample_maker_noisy <- function(n, m, iteration, N) {
   # n - useful features
   # m - observations per feature
   # x - symmetrical location of the centre
@@ -181,7 +187,7 @@ scores_generator_arandi_noisy <- function(k, n, m, N, v) {
 
 ```{r Testing New Function}
 
-test <- simple_data(500, 5, 0, 5, TRUE, FALSE)
+test <- simple_data(50, 5, 0, 5, FALSE, TRUE)
 
 ggplot(test, aes(x = test[,1], y = test[,2])) +
   geom_point()
