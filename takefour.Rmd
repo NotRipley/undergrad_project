@@ -44,13 +44,29 @@ library(dbscan)
 # m - number of rows
 # n - number of dimensions for the dataset (number of columns)
 # N - noise dimensions to be added to the dataset 'in post' of the generation
+# k - clusters to generate
 # Overlap - boolean variable, whether the variances of each cluster should be inflated s.t. they overlap, or should they be well-separated?
 # Equal-In - boolean - should my clusters be spherical, or 'ovoid'?
 # Equal-Out - equal variance between clusters, or randomly allocate?
 
-simple_data <- function(m, n, N, overlap, equalin, equalout) {
+simple_data <- function(m, n, N, k, overlap, equalin, equalout) {
+  
+  # make sure nothing's gonna break
+  stopifnot(
+    is.logical(overlap), 
+    is.logical(equalin),
+    is.logical(equalout)
+  )
+  
+  # check some options based on our arguments
   
   
+  unmerged <- list()
+  
+  # create centre data as separate matrices in 'unmerged'
+  for (i in 1:k) {
+    list[[i]] <- matrix(rnorm(m*n, i, ))
+  }
   
 }
 
