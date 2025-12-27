@@ -76,17 +76,20 @@ simple_data <- function(m, n, N, k, overlap, equalin) {
   # create centre data as separate matrices in 'unmerged'
   for (i in 1:k) {
     unmerged[[i]] <- matrix(rnorm(m*n, i, p_var[[i]]), nrow = m, ncol = n)
+    
+    noise <- matrix(rnorm(N*m, mean = 0, sd = 0.3), nrow = m, ncol = N)
+    unmerged[[i]] <- cbind(unmerged[[i]], noise)
+    
+    unmerged[[i]] <- cbind(unmerged[[i]], matrix(data = as.numeric(i), nrow = m, ncol = 1)) # add tag column
   }
   
-  merged <- do.call(rbind, unmerged) # smush the matrices together
+  frame <- as.data.frame(do.call(rbind, unmerged)) # smush the matrices together
   
-  # at this point, merged is just a matrix. We want to add N columns of normally-distributed noise. 
+  names(frame)[1:n] <- paste0("dim", 1:n)
+  names(frame)[(n + 1):(n + N)] <- paste0("noise", 1:N)
+  names(frame)[ncol(frame)] <- "Tag"
   
-  noise <- matrix(rnorm(N*m*k, mean = 0, sd = 0.3), nrow = m*k, ncol = N) # we choose a sd for these noise dimensions that isn't bigger or smaller than any of the clusters would be, because I think that could create more problems. 
-  
-  merged_2 <- cbind(merged, noise) # chuck em together and return result
-  
-  return(as.data.frame(merged_2))
+  return(frame)
   
 }
 
