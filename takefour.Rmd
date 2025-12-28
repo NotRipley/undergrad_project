@@ -198,13 +198,13 @@ kmeans_true_k <- function(data, k, ignore_last) {
   # a sprinkle of input checking
   stopifnot(
     is.data.frame(data),
-    is.integer(k),
+    is.numeric(k),
     is.logical(ignore_last)
   )
   
   # drop last col if it's a tag col
   if (ignore_last == TRUE) {
-    p_frame <- data[, -ncol(df)]
+    p_frame <- data[, -ncol(data)]
   } else {
     p_frame <- data
   }
@@ -216,12 +216,19 @@ kmeans_true_k <- function(data, k, ignore_last) {
   
 }
 
+
+
+
 ```
 
 
 ```{r Testing New Function}
 
 test <- simple_data(50, 5, 1, 5, FALSE, TRUE)
+
+kmeans_on_test <- kmeans_true_k(test, 5, TRUE)
+
+kmeans_on_test
 
 ggplot(test, aes(x = test[,1], y = test[,2])) +
   geom_point()
