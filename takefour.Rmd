@@ -190,7 +190,29 @@ simple_data <- function(m, n, N, k, overlap, equalin) {
 
 
 # kmeans_true_k will only work on datasets where we have the true number of clusters. we will use the paper that cecilia sent over to do a kmeans_est_k when we have replicated the simple simulation. This is justified by the fact that the simple simulation's aim is not to implicitly assess the performance of a clustering esimator, so we are essentially controlling for this. 
-kmeans_true_k <- function(data, ) {
+# data - the dataframe that is generated 
+# k - the true number of centres. hence, this will only work on our artificial simple data
+# ignore_last - logical representing whether to cluster on the final col (i.e. is it a tag col)
+kmeans_true_k <- function(data, k, ignore_last) {
+  
+  # a sprinkle of input checking
+  stopifnot(
+    is.data.frame(data),
+    is.integer(k),
+    is.logical(ignore_last)
+  )
+  
+  # drop last col if it's a tag col
+  if (ignore_last == TRUE) {
+    p_frame <- data[, -ncol(df)]
+  } else {
+    p_frame <- data
+  }
+  
+  # kmeans on true k. In future can roll the estimation into this function maybe?
+  kmobject <- kmeans(p_frame, k, iter.max = 20, nstart = 25)
+  
+  return(kmobject)
   
 }
 
