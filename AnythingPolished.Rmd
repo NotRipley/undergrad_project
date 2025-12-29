@@ -128,7 +128,7 @@ for (i in seq_along(log_sequence)) {
 
 ```
 
-What do we take away from this? 
+What do we take away from this? So far, it's not working. The only thing I can think of is that I add noise inside the for loop, which may mean that it carries a bit of signal? That wouldn't make any sense though. 
 
 ### Comparison of KMeans vs DBScan on Simple Data
 
@@ -139,6 +139,29 @@ What do we take away from this?
 
 
 ### Performance on Splatter Data
+
+We create a function which loads in a new SplatParams object and sets the relevant parameters to a specified value. 
+There's so many parameters, we should be careful not to overdo our function, adding in the ability to change from default values just as needed. To bear in mind: check the differential expression params. 
+
+Anyway, it's good that we've started on this stuff. Big mountain but plodding. 
+
+```{r Libraries}
+
+# Load package
+suppressPackageStartupMessages({
+    library(splatter)
+    library(scater)
+})
+
+```
+
+```{r Functions}
+
+create_splat_params <- function() {
+  
+}
+
+```
 
 
 
