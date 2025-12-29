@@ -74,11 +74,51 @@ simple_data <- function(m, n, N, k, overlap, equalin) {
   
 }
 
+# data - the dataframe that is generated 
+# k - the true number of centres. hence, this will only work on our artificial simple data
+# ignore_last - logical representing whether to cluster on the final col (i.e. is it a tag col)
+kmeans_true_k <- function(data, k, ignore_last) {
+  
+  # a sprinkle of input checking
+  stopifnot(
+    is.data.frame(data),
+    is.numeric(k),
+    is.logical(ignore_last)
+  )
+  
+  # drop last col if it's a tag col
+  if (ignore_last == TRUE) {
+    p_frame <- data[, -ncol(data)]
+  } else {
+    p_frame <- data
+  }
+  
+  # kmeans on true k. In future can roll the estimation into this function maybe?
+  kmobject <- kmeans(p_frame, k, iter.max = 20, nstart = 25)
+  
+  return(kmobject)
+  
+}
+
 ```
 
 ```{r Simulation}
 
+# output will have 800 rows, 10^4 + 1 columns, one of which will be a tag column
+sim_data <- simple_data(200, 10, 10^6 - 10, 4, TRUE, TRUE)
 
+# 10 output points, starting small so we check it works
+log_sequence <- unique(round(10^seq(1, 4, length.out = 10)))
+
+scores <- numeric(length(log_sequence))
+
+for (i in seq_along(log_sequence)) {
+  current_slice <- sim_data[, 1:log_sequence[i]]
+  kmobject <- kmeans_true_k(current_slice, 4, FALSE) # we don't ignore last because we never pass it all 10011
+  scores[i] <- mclust::adjustedRandIndex(sim_data$Tag, kmobject$cluster)
+  
+  cat("Dimension", log_sequence[i], "gives score: ", round(scores[i], 4), " \n")
+}
 
 ```
 
