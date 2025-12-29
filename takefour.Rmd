@@ -236,6 +236,18 @@ ggplot(test, aes(x = test[,1], y = test[,2])) +
 ```
 
 
+
+```{r Replicating Simple Simulation - Data Generation}
+
+# first, we want to generate our huge dataset. 
+# it is a bad idea to do this with no progress print statements. 
+
+simple_data(2000, 10, 10^4, 3, FALSE, TRUE)
+
+```
+
+
+
 ```{r Making the Data for the Plot}
 
 log_sequence <- unique(round(10^seq(1, 4, length.out = 30)))
