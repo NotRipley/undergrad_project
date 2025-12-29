@@ -167,13 +167,18 @@ simple_data <- function(m, n, N, k, overlap, equalin) {
   
   # create centre data as separate matrices in 'unmerged'
   for (i in 1:k) {
+    cat("generating cluster ", i, "... \n")
     unmerged[[i]] <- matrix(rnorm(m*n, i, p_var[[i]]), nrow = m, ncol = n)
     
     noise <- matrix(rnorm(N*m, mean = 0, sd = 0.3), nrow = m, ncol = N)
     unmerged[[i]] <- cbind(unmerged[[i]], noise)
     
     unmerged[[i]] <- cbind(unmerged[[i]], matrix(data = as.numeric(i), nrow = m, ncol = 1)) # add tag column
+    
+    cat("finished cluster ", i, "... \n")
   }
+  
+  cat("finished all clusters... \n")
   
   frame <- as.data.frame(do.call(rbind, unmerged)) # smush the matrices together
   
@@ -242,7 +247,30 @@ ggplot(test, aes(x = test[,1], y = test[,2])) +
 # first, we want to generate our huge dataset. 
 # it is a bad idea to do this with no progress print statements. 
 
-simple_data(2000, 10, 10^4, 3, FALSE, TRUE)
+sim_data <- simple_data(2000, 10, 10^4, 4, TRUE, TRUE)
+
+```
+
+```{r Replicating Simple Simulation - Running KMeans}
+
+# we want to slice the data and run KMeans as the number of noise dimensions increases. At each step we want to calculate adjusted rand index and add it to a vector, which we will then plot. 
+
+# our data is stored in sim_data
+
+# we make our log sequence like before
+log_sequence <- unique(round(10^seq(1, 4, length.out = 30)))
+
+# initialise a vector to store our scores
+scores <- numeric(length(log_sequence))
+
+for (i in seq_along(log_sequence)) {
+  current_slice <- sim_data[, 1:log_sequence[i]]
+  kmobject <- kmeans_true_k(current_slice, 3, FALSE) # we don't ignore last because we never pass it all 10011
+  scores[i] <- mclust::adjustedRandIndex(sim_data$Tag, kmobject$cluster)
+  
+  cat("Dimension", log_sequence[i], "gives score: ", round(scores[i], 4), " \n")
+}
+
 
 ```
 
