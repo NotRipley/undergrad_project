@@ -151,18 +151,57 @@ Anyway, it's good that we've started on this stuff. Big mountain but plodding.
 suppressPackageStartupMessages({
     library(splatter)
     library(scater)
+    library(Seurat)
 })
 
 ```
 
 ```{r Functions}
 
-create_splat_params <- function() {
+# batchCells - a vector giving the number of cells per batch, ie two batches with 100 cells is (100, 100)
+# group.prob - vector specifying probabilities per group, ie (0.5, 0.5) will likely give two same sized groups
+# de.prob - probability that genes will be DE by group(?) i.e. that they'll differ more than just noise
+# nGenes - number of genes to simulate
+# all else we leave as default values. 
+seurat_from_params <- function(batchCells, group.prob, de.prob, nGenes) {
+  
+  params <- newSplatParams()
+  
+  params <- setParams(params, update = list(
+    batchCells = batchCells, 
+    group.prob = group.prob, 
+    de.prob = de.prob,
+    nGenes = nGenes
+    ))
+  
+  sim <- splatSimulate(params, method = "groups")
+  
+  counts_matrix <- counts(sim)
+  seurat_obj <- CreateSeuratObject(counts = counts_matrix)
+  
+  # then we want to add the true labelling in case we want to do arandi
+  seurat_obj$true_labelling <- colData(sim)$Group
+  
+  return(seurat_obj)
   
 }
 
 ```
 
+```{r Simulate}
+
+seurat1 <- seurat_from_params(
+  batchCells = 500,
+  group.prob = c(0.25, 0.25, 0.25, 0.25),
+  de.prob = 0.2, 
+  nGenes = 3000
+)
+
+seurat1
+
+# ok looks like we have a data creation function here. We switch to 20 mins of looking for jobs, then come back and attack the dbscan bit. Then continue with this. Then soon hope to write this up in the methodology.
+
+```
 
 
 ### Performance on Real Data
