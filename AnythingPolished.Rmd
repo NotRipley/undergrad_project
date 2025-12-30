@@ -132,9 +132,65 @@ What do we take away from this? So far, it's not working. The only thing I can t
 
 ### Comparison of KMeans vs DBScan on Simple Data
 
+```{r Libraries}
+
+library(dbscan)
+
+```
+
+
+In this section, we are not demonstrating the curse of dimensionality with DBScan. We are going for a straight up performance comparison of KMeans to DBScan on simple data. Since we are generating the data ourselves, we can use a performance index that takes the ground truth, in our case Adjust Rand Index. 
+
+We check on medium- and high-dimensional data, and with well-separated and overlapping clusters. 
+
+DBScan will hasve serious challenges (from what I understand) as the dimensionality of the data exceeds our sample size. I think that this is down to the distance convergence as dimension increases; the ratio of distances to two points in n-space goes to 0 as n goes to infinity. This will almost always be the case in the splatter and real data. Hence, even now when we could artificially get around that, we implement our dimensionality reduction here. 
+
+For now, just some PCA. We can check nonlinear tSNE and UMAP later. 
+
+When we come back to this, we will finish this pca thing and check the dbscan performance on simple data. 
+
+```{r Functions}
+
+simple_dbscan <- function(data, pcs, ignore_last) {
+  
+  # first step we reduce to a desired number of pcs
+  
+  if (ignore_last == TRUE) {
+    p_data <- data[, -ncol(data)]
+  } else {
+    p_data <- data
+  }
+  
+  pc_data <- prcomp(p_data)
+  
+  # reverse sign?
+  # pc_data$rotation <- -1*pc_data$rotation
+  # pc_data$x <- -1*pc_data*x
+  
+  return(pc_data)
+  
+  
+}
+
+```
+
+```{r Simulation}
+
+data1 <- simple_data(200, 1000, 0, 4, FALSE, TRUE)
+
+pcs1 <- simple_dbscan(data1, 50, TRUE)
+
+head(pcs1$x)
+
+
+```
 
 
 ### Comparison of Cluster Validation Metrics
+
+
+
+### Dimensionality Reduction - PCA and tSNE
 
 
 
