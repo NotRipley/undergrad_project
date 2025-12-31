@@ -132,7 +132,7 @@ What do we take away from this? So far, it's not working. The only thing I can t
 
 ### Comparison of KMeans vs DBScan on Simple Data
 
-```{r Libraries}
+```{r Libraries2}
 
 library(dbscan)
 library(mlbench)
@@ -150,7 +150,7 @@ For now, just some PCA. We can check nonlinear tSNE and UMAP later.
 
 When we come back to this, we will finish this pca thing and check the dbscan performance on simple data. 
 
-```{r Functions}
+```{r Functions2}
 
 simple_dbscan <- function(data, pcs, ignore_last) {
   
@@ -173,7 +173,7 @@ simple_dbscan <- function(data, pcs, ignore_last) {
 
 We get a first PC explaining the vast majority of the variation because of the way we have generated the data. It may be that it's not really meaningful to compare kmeans and dbscan on this same simulation. I think that we can easily come back and do that with mlbench if we want. But for now, I'll focus on getting the splatter sim data up. Then, I want to generate some realistic data with it, and go for some comparisons of the performance of kmeans with and without pca, and dbscan with and without pca. 
 
-```{r Simulation}
+```{r Simulation2}
 
 data1 <- simple_data(200, 1000, 0, 4, TRUE, FALSE)
 
@@ -209,7 +209,7 @@ There's so many parameters, we should be careful not to overdo our function, add
 
 Anyway, it's good that we've started on this stuff. Big mountain but plodding. 
 
-```{r Libraries}
+```{r Libraries3}
 
 # Load package
 suppressPackageStartupMessages({
@@ -220,7 +220,7 @@ suppressPackageStartupMessages({
 
 ```
 
-```{r Functions}
+```{r Functions3}
 
 # batchCells - a vector giving the number of cells per batch, ie two batches with 100 cells is (100, 100)
 # group.prob - vector specifying probabilities per group, ie (0.5, 0.5) will likely give two same sized groups
@@ -263,7 +263,7 @@ seurat_from_params <- function(batchCells, group.prob, de.prob, nGenes, proj_nam
 We will do the standard pre-processing workflow from the seurat tutorial, on our simulated data. Hopefully it has what we need there. Then, we can compare the performance of dbscan and kmeans on it, using the ground truth that we still have in this case.
 
 
-```{r Simulate}
+```{r Simulation3}
 
 seurat1 <- seurat_from_params(
   batchCells = 500,
@@ -273,9 +273,56 @@ seurat1 <- seurat_from_params(
   proj_name = "seurat1"
 )
 
-seurat1
+# so with bulk RNA-seq, the processing workflow goes:
+# - drop cells we don't want
+# - normalise, scale, find variable features
+# - linear dimred
+# - cluster
+# - nonlinear dimred
+# whereas in scRNA-seq:
+# - SCTransform
+# - linear and nonlinear dimred, cluster, visualise
+
+# store mitochondrial percentage in object meta data
+seurat1 <- PercentageFeatureSet(seurat1, pattern = "^MT-", col.name = "percent.mt")
+
+# run sctransform
+seurat1 <- SCTransform(seurat1, vars.to.regress = "percent.mt", verbose = FALSE)
 
 ```
+```{r Visualisation Steps}
+
+# standard steps apparently
+
+seurat1 <- RunPCA(seurat1, verbose = FALSE)
+seurat1 <- RunUMAP(seurat1, dims = 1:30, verbose = FALSE)
+
+seurat1 <- FindNeighbors(seurat1, dims = 1:30, verbose = FALSE)
+seurat1 <- FindClusters(seurat1, verbose = FALSE)
+DimPlot(seurat1)
+
+```
+```{r All Together Now}
+
+seurat2 <- seurat_from_params(batchCells = 300, group.prob = c(0.3, 0.3, 0.4), de.prob = 0.1, nGenes = 3000, proj_name = "seurat2")
+
+# store mitochondrial percentage in object meta data - it is important to realise that what this is doing is saying 'we want to control for healthy vs dying cells because having a really high amount of mitochondrial expression is a sign that something is wrong", i think, and so the vars to regress controls for that in downstream analysis. 
+seurat2 <- PercentageFeatureSet(seurat2, pattern = "^MT-", col.name = "percent.mt")
+
+# run sctransform
+seurat2 <- SCTransform(seurat2, vars.to.regress = "percent.mt", verbose = FALSE)
+
+seurat2 <- RunPCA(seurat2, verbose = FALSE)
+seurat2 <- RunUMAP(seurat2, dims = 1:30, verbose = FALSE)
+
+seurat2<- FindNeighbors(seurat2, dims = 1:30, verbose = FALSE)
+seurat2 <- FindClusters(seurat2, verbose = FALSE)
+
+DimPlot(seurat2)
+
+```
+
+
 
 ### Dimensionality Reduction - PCA and tSNE
 
