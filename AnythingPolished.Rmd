@@ -135,6 +135,7 @@ What do we take away from this? So far, it's not working. The only thing I can t
 ```{r Libraries}
 
 library(dbscan)
+library(mlbench)
 
 ```
 
@@ -161,11 +162,7 @@ simple_dbscan <- function(data, pcs, ignore_last) {
     p_data <- data
   }
   
-  pc_data <- prcomp(p_data)
-  
-  # reverse sign?
-  # pc_data$rotation <- -1*pc_data$rotation
-  # pc_data$x <- -1*pc_data*x
+  pc_data <- prcomp(p_data, scale = TRUE)
   
   return(pc_data)
   
@@ -174,23 +171,34 @@ simple_dbscan <- function(data, pcs, ignore_last) {
 
 ```
 
+We get a first PC explaining the vast majority of the variation because of the way we have generated the data. It may be that it's not really meaningful to compare kmeans and dbscan on this same simulation. I think that we can easily come back and do that with mlbench if we want. But for now, I'll focus on getting the splatter sim data up. Then, I want to generate some realistic data with it, and go for some comparisons of the performance of kmeans with and without pca, and dbscan with and without pca. 
+
 ```{r Simulation}
 
-data1 <- simple_data(200, 1000, 0, 4, FALSE, TRUE)
+data1 <- simple_data(200, 1000, 0, 4, TRUE, FALSE)
 
 pcs1 <- simple_dbscan(data1, 50, TRUE)
 
-head(pcs1$x)
+var_explained <- (pcs1$sdev^2 / sum(pcs1$sdev^2))
 
+qplot(c(1:10), var_explained[1:10]) + 
+  geom_line() + 
+  xlab("Principal Component") + 
+  ylab("Variance Explained") +
+  ggtitle("Scree Plot") +
+  ylim(0, 1)
+
+spirals <- mlbench.spirals(300, 1.5, 0.0)
+cassini <- mlbench.cassini(300)
+
+
+plot(spirals)
+plot(cassini)
 
 ```
 
 
 ### Comparison of Cluster Validation Metrics
-
-
-
-### Dimensionality Reduction - PCA and tSNE
 
 
 
@@ -255,9 +263,10 @@ seurat1 <- seurat_from_params(
 
 seurat1
 
-# ok looks like we have a data creation function here. We switch to 20 mins of looking for jobs, then come back and attack the dbscan bit. Then continue with this. Then soon hope to write this up in the methodology.
-
 ```
+
+### Dimensionality Reduction - PCA and tSNE
+
 
 
 ### Performance on Real Data
