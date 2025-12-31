@@ -227,7 +227,15 @@ suppressPackageStartupMessages({
 # de.prob - probability that genes will be DE by group(?) i.e. that they'll differ more than just noise
 # nGenes - number of genes to simulate
 # all else we leave as default values. 
-seurat_from_params <- function(batchCells, group.prob, de.prob, nGenes) {
+seurat_from_params <- function(batchCells, group.prob, de.prob, nGenes, proj_name) {
+  
+  stopifnot(
+    is.numeric(batchCells),
+    is.numeric(group.prob),
+    is.numeric(de.prob),
+    is.numeric(nGenes),
+    is.character(proj_name)
+  )
   
   params <- newSplatParams()
   
@@ -241,7 +249,7 @@ seurat_from_params <- function(batchCells, group.prob, de.prob, nGenes) {
   sim <- splatSimulate(params, method = "groups")
   
   counts_matrix <- counts(sim)
-  seurat_obj <- CreateSeuratObject(counts = counts_matrix)
+  seurat_obj <- CreateSeuratObject(counts = counts_matrix, project = proj_name)
   
   # then we want to add the true labelling in case we want to do arandi
   seurat_obj$true_labelling <- colData(sim)$Group
@@ -252,13 +260,17 @@ seurat_from_params <- function(batchCells, group.prob, de.prob, nGenes) {
 
 ```
 
+We will do the standard pre-processing workflow from the seurat tutorial, on our simulated data. Hopefully it has what we need there. Then, we can compare the performance of dbscan and kmeans on it, using the ground truth that we still have in this case.
+
+
 ```{r Simulate}
 
 seurat1 <- seurat_from_params(
   batchCells = 500,
   group.prob = c(0.25, 0.25, 0.25, 0.25),
   de.prob = 0.2, 
-  nGenes = 3000
+  nGenes = 3000,
+  proj_name = "seurat1"
 )
 
 seurat1
