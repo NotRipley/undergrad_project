@@ -104,21 +104,21 @@ kmeans_true_k <- function(data, k, ignore_last) {
 
 ```{r Simulation}
 
-# output will have 800 rows, 10^4 + 1 columns, one of which will be a tag column
-sim_data <- simple_data(200, 10, 10^6 - 10, 4, TRUE, TRUE)
-
-# 10 output points, starting small so we check it works
-log_sequence <- unique(round(10^seq(1, 4, length.out = 10)))
-
-scores <- numeric(length(log_sequence))
-
-for (i in seq_along(log_sequence)) {
-  current_slice <- sim_data[, 1:log_sequence[i]]
-  kmobject <- kmeans_true_k(current_slice, 4, FALSE) # we don't ignore last because we never pass it all 10011
-  scores[i] <- mclust::adjustedRandIndex(sim_data$Tag, kmobject$cluster)
-  
-  cat("Dimension", log_sequence[i], "gives score: ", round(scores[i], 4), " \n")
-}
+# # output will have 800 rows, 10^4 + 1 columns, one of which will be a tag column
+# sim_data <- simple_data(200, 10, 10^6 - 10, 4, TRUE, TRUE)
+# 
+# # 10 output points, starting small so we check it works
+# log_sequence <- unique(round(10^seq(1, 4, length.out = 10)))
+# 
+# scores <- numeric(length(log_sequence))
+# 
+# for (i in seq_along(log_sequence)) {
+#   current_slice <- sim_data[, 1:log_sequence[i]]
+#   kmobject <- kmeans_true_k(current_slice, 4, FALSE) # we don't ignore last because we never pass it all 10011
+#   scores[i] <- mclust::adjustedRandIndex(sim_data$Tag, kmobject$cluster)
+#   
+#   cat("Dimension", log_sequence[i], "gives score: ", round(scores[i], 4), " \n")
+# }
 
 ```
 
@@ -315,19 +315,79 @@ seurat2 <- SCTransform(seurat2, vars.to.regress = "percent.mt", verbose = FALSE)
 seurat2 <- RunPCA(seurat2, verbose = FALSE)
 seurat2 <- RunUMAP(seurat2, dims = 1:30, verbose = FALSE)
 
-seurat2<- FindNeighbors(seurat2, dims = 1:30, verbose = FALSE)
+seurat2 <- FindNeighbors(seurat2, dims = 1:30, verbose = FALSE)
 seurat2 <- FindClusters(seurat2, verbose = FALSE)
 
 DimPlot(seurat2)
+
+# so we make a function
+
+# sobject - the seurat object we will process
+# umap_dims - the number of dims to consider in our umap step
+# nbr_dims - number of dims considered in our find neighbours step
+# reg_vars - assumed that PercentageFeatSet has been run or similar beforehand, and that the cols we want to control for already exist. So we add them here. char or vector of chars
+seurat_preprocess <- function(sobject, umap_dims = 30, nbr_dims = 30, reg_vars = NULL) {
+  
+  stopifnot(
+    is.numeric(umap_dims),
+    is.numeric(nbr_dims)
+  )
+  
+  # run main SCTransform step
+  if (is.null(reg_vars)) {
+    sobject <- SCTransform(sobject, verbose = FALSE)
+  } else {
+    sobject <- SCTransform(sobject, vars.to.regress = reg_vars, verbose = FALSE)
+  }
+  
+  sobject <- RunPCA(sobject, verbose = FALSE)
+  sobject <- RunUMAP(sobject, dims = 1:umap_dims, verbose = FALSE)
+
+  sobject <- FindNeighbors(sobject, dims = 1:nbr_dims, verbose = FALSE)
+  sobject <- FindClusters(sobject, verbose = FALSE)
+  
+  return(sobject)
+  
+}
+
+seurat2 <- seurat_preprocess(seurat2)
+
+DimPlot(seurat2)
+
+# i can't tell why these are incredibly well separated, if it's just because UMAP is cooking or what. That'll be one of the next tasks. 
+
+# but yeah, now we need to extract just how good of a job the algorithms have done here. As standard, the clustering in this workflow is Louvain i think.
 
 ```
 
 
 
-### Dimensionality Reduction - PCA and tSNE
+### Dimensionality Reduction - PCA, tSNE and UMAP
 
 
 
-### Performance on Real Data
+### Performance on Real Data - pcmb one?
+
+```{r Standard Workflow on pcmb Data}
+
+pbmc_data <- Read10X("filtered_gene_bc_matrices/hg19/")
+
+pbmc <- CreateSeuratObject(counts = pbmc_data)
+
+# store mitochondrial percentage in object meta data
+pbmc <- PercentageFeatureSet(pbmc, pattern = "^MT-", col.name = "percent.mt")
+
+# run sctransform
+pbmc <- SCTransform(pbmc, vars.to.regress = "percent.mt", verbose = FALSE)
+
+# These are now standard steps in the Seurat workflow for visualization and clustering
+pbmc <- RunPCA(pbmc, verbose = FALSE)
+pbmc <- RunUMAP(pbmc, dims = 1:30, verbose = FALSE)
+
+pbmc <- FindNeighbors(pbmc, dims = 1:30, verbose = FALSE)
+pbmc <- FindClusters(pbmc, verbose = FALSE)
+DimPlot(pbmc, label = TRUE)
+
+```
 
 
