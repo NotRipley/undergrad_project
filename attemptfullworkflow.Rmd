@@ -1,5 +1,10 @@
 ---
-title: "attemptfullworkflow"
+title: "Draft Workflow for Clustering Algorithm Comparison on scRNA-seq Data"
 output: html_document
 ---
 
+### Data to be considered
+
+### Algorithms for Comparison
+
+### Quality Metrics
