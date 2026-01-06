@@ -5,6 +5,124 @@ output: html_document
 
 ### Data to be considered
 
+First in consideration are the two datasets we will consider. We will use the pbmc dataset and one chosen splatter sim for now. So in this section, we load, label, process etc etc the two datasets and get them both into seurat objects. We also sort out where our files are going to be stored, and before moving on we clean up our working directory a bit.
+
+## Metadata to store as output
+
+KMeans needs k (number of centres) to be estimated or varied. DBScan needs eps (max distance between points) and minpts (min pts for a cluster) the same. Louvain needs resolution to be estimated or varied.
+
+So for each clustering attempt, we store:
+- the algorithm info
+  - the type
+  - the parameters
+- the dataset info
+  - the name
+  - the number of cells
+  - the number of features
+  - the number of PCs
+  - (maybe here is whether we use UMAP or not?)
+- the run info
+  - which repetition this is
+  - the random seed
+  - the time at the start
+  - the runtime 
+- the cluster results
+  - the number detected
+  - the sizes of them
+- the quality metrics
+  - silhouette avg
+  - silhouette sd - because silhouette is a per-node property and not initially a gobal one, it has some variance
+  - the adj rand index
+  - any more that we want - this can be considered an easy way to expand the scope i think
+- then any biological context that we want to add
+
+## How many repetitions
+
+A lot of estimation for DBScan parameters involves computationally finding an 'elbow', which is fine but a bit clunky. AI suggests a grid search on the parameters and just storing all of them, but this seems really inefficient because I then just don't care about the ones that aren't optimal. 
+
+But however we do it, we go with 30-50 repetitions by unique algorithm/parameter/dataset combination. And then we can extract the quality metrics from these 30-50 repetitions.
+
 ### Algorithms for Comparison
 
+We want to compare KMeans, DBScan, and the Louvain Algorithm. If we expanded this scope, it would be to the other standard options in FindClusters(algorithm=...) from seurat.
+
 ### Quality Metrics
+
+For our splatter data, we will have access to the ground truth. In this case, we can use the adjusted rand index for the cluster quality assessment. We also do the silhouette score. 
+
+
+### We Begin
+
+```{r Libraries}
+
+suppressPackageStartupMessages({
+    library(splatter)
+    library(scater)
+    library(Seurat)
+})
+
+```
+
+```{r Functions}
+
+# batchCells - a vector giving the number of cells per batch, ie two batches with 100 cells is (100, 100)
+# group.prob - vector specifying probabilities per group, ie (0.5, 0.5) will likely give two same sized groups
+# de.prob - probability that genes will be DE by group(?) i.e. that they'll differ more than just noise
+# nGenes - number of genes to simulate
+# all else we leave as default values. 
+seurat_from_params <- function(batchCells, group.prob, de.prob, nGenes, proj_name) {
+  
+  stopifnot(
+    is.numeric(batchCells),
+    is.numeric(group.prob),
+    is.numeric(de.prob),
+    is.numeric(nGenes),
+    is.character(proj_name)
+  )
+  
+  params <- newSplatParams()
+  
+  params <- setParams(params, update = list(
+    batchCells = batchCells, 
+    group.prob = group.prob, 
+    de.prob = de.prob,
+    nGenes = nGenes
+    ))
+  
+  sim <- splatSimulate(params, method = "groups")
+  
+  counts_matrix <- counts(sim)
+  seurat_obj <- CreateSeuratObject(counts = counts_matrix, project = proj_name)
+  
+  # then we want to add the true labelling in case we want to do arandi
+  seurat_obj$true_labelling <- colData(sim)$Group
+  
+  return(seurat_obj)
+  
+}
+
+```
+
+```{r Simulated Dataset}
+
+seurat1 <- seurat_from_params(
+  batchCells = 500,
+  group.prob = c(0.25, 0.25, 0.25, 0.25),
+  de.prob = 0.2, 
+  nGenes = 3000,
+  proj_name = "seurat1"
+)
+
+```
+
+```{r pbmc Dataset}
+
+pbmc_data <- Read10X("filtered_gene_bc_matrices/hg19/")
+
+pbmc <- CreateSeuratObject(counts = pbmc_data)
+
+```
+
+
+
+
