@@ -56,9 +56,10 @@ For our splatter data, we will have access to the ground truth. In this case, we
 ```{r Libraries}
 
 suppressPackageStartupMessages({
-    library(splatter)
-    library(scater)
-    library(Seurat)
+  library(splatter)
+  library(scater)
+  library(Seurat)
+  library(tidyverse)
 })
 
 ```
@@ -117,12 +118,25 @@ seurat1 <- seurat_from_params(
 
 ```{r pbmc Dataset}
 
-pbmc_data <- Read10X("filtered_gene_bc_matrices/hg19/")
+pbmc_data <- Read10X("C:/Users/fmhfl/Desktop/Undergrad Project/undergrad_project/DATA/filtered_gene_bc_matrices/hg19/")
 
 pbmc <- CreateSeuratObject(counts = pbmc_data)
 
 ```
 
+
+```{r Init Results Dataframe}
+
+RESULTS <- tibble(
+  run_name = character(),
+  algorithm = character(),
+  k = integer(),
+  eps = numeric(),
+  minpts = integer(),
+  resolution = numeric()
+)
+
+```
 
 
 
