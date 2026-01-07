@@ -130,11 +130,30 @@ pbmc <- CreateSeuratObject(counts = pbmc_data)
 RESULTS <- tibble(
   run_name = character(),
   algorithm = character(),
+  
   k = integer(),
   eps = numeric(),
   minpts = integer(),
-  resolution = numeric()
+  resolution = numeric(),
+  
+  dataset = character(),
+  ncells = integer(),
+  nfeatures = integer(),
+  npcs = integer(),
+  
+  repindex = integer(),
+  random_seed = numeric(),
+  start_time = POSIXct(),
+  runtime = numeric(),
+  
+  cluster_numer = integer(),
+  cluster_sizes = list(),
+  
+  sil_avg = numeric(),
+  sil_sd = numeric(),
+  arandi = numeric()
 )
+
 
 ```
 
