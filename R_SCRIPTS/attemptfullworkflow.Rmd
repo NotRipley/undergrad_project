@@ -60,6 +60,7 @@ suppressPackageStartupMessages({
   library(scater)
   library(Seurat)
   library(tidyverse)
+  library(cluster)
 })
 
 ```
@@ -119,11 +120,6 @@ preprocess <- function(seurat_object) {
   
 }
 
-# one thing we really need to check is if the pbmc is single cell - 99% sure it is but conscious I haven't actually checked. 
-
-# now, we have seurat objects, sctransformed (normalised and scaled and high var features identified etc) and PCA'd, and we want to cluster them. The easiest to implement will be Louvain and then Leiden, as they are choices that actually make sense. slightly harder to implement will be kmeans, and slightly harder than that will be dbscan. We start with kmeans as nice middle ground. 
-
-# in terms of time efficiency, make it exist first, then make it good. we can ask AI for all the timesaving tips about something that exists, but it's not useful if we're getting it to write the function in the first place. so we begin. 
 
 # seurat_object - a processed seurat object
 # npcs - number of pcs to consider
@@ -142,6 +138,18 @@ run_kmeans <- function(seurat_object, npcs, k) {
   kmobject <- kmeans(pc_embeddings, centers = k, nstart = 25)
   
   return(kmobject)
+  
+}
+
+
+# pc_embeddings - the pc embeddings from running Embeddings(seurat_object, reduction = "pca")
+# clustering - vector of cluster assignments eg from kmeans$cluster
+silhouette_score <- function(pc_embeddings, clustering) {
+  # takes pc embeddings and clustering and returns silhouette mean, then sd
+  
+  sil <- silhouette(clustering, dist(pc_embeddings))
+  
+  return(list(mean(sil[, 3]), sd(sil[, 3])))
   
 }
 
@@ -200,7 +208,7 @@ RESULTS <- tibble(
 
 ```
 
-
+one thing we really need to check is if the pbmc is single cell - 99% sure it is but conscious I haven't actually checked. 
 
 ```{r Scratch}
 
@@ -210,9 +218,76 @@ km_simulated1 <- run_kmeans(p_simulated1, 30, 4)
 
 # ok so this seems to be working about as intended.
 # since we're not going to have to generalise to dataset (we're only going to do 2 or 3) I'm ok with choosing k manually, for now at least. 
-# now we get our index extraction.
+# now we get our index extraction. so which did we wanna do? silhouette first. Then we can do a run of 50 reps and get 50 rows in our tibble named draft or smth. because we haven't brought through the true clustering yet, we can't quite do arandi. so for now we do the most useful one which will be silhouette.
+
+# but, what we want to pass to our silhouette score function, is just the original matrix (sparse or not who cares) and the clustering tag. so that we can modularise based on algorithm and index. 
+
+embed1 <- Embeddings(p_simulated1, reduction = "pca")
+sil1 <- silhouette_score(embed1, km_simulated1$cluster)
+
+# so given several factors that should affect the clustering: simulated (makes it better in this case), kmeans (worse since algorithm not the best), given true number of clusters (better), we see at least a reasonable average sil score of .258 in this first simulation, with a sd of 0.041. let's repeat this a bunch, and see if we can then average them.
 
 ```
+
+
+
+```{r Trying to Spit out Some Results mostly AI SLOP}
+
+p_simulated1 <- preprocess(simulated1)
+
+tib1 <- tibble()
+
+for (i in 1:50) {
+  # Set parameters
+  k <- 4
+  n_pcs <- 30
+  rep_index <- i
+  seed <- 123 + i  # Different seed per rep is standard practice
+  
+  # Start timing
+  start_time <- Sys.time()
+  
+  # Set seed and run clustering
+  set.seed(seed)
+  kmobject <- run_kmeans(p_simulated1, npcs = n_pcs, k = 4)
+  
+  # Calculate silhouette
+  sil_both <- silhouette_score(Embeddings(p_simulated1, reduction = "pca"), kmobject$cluster)
+  sil_avg <- sil_both[[1]]
+  sil_sd <- sil_both[[2]]
+  
+  # End timing
+  end_time <- Sys.time()
+  runtime <- as.numeric(difftime(end_time, start_time, units = "secs"))
+  
+  # Compile results
+  results <- tibble(
+    algorithm = "kmeans",
+    parameters = paste0("k=", k, ", nstart=25"),
+    dataset = "simulated1",  # or whatever your dataset name is
+    n_cells = ncol(p_simulated1),
+    n_features = nrow(p_simulated1),
+    n_pcs = n_pcs,
+    repetition = i,
+    seed = seed,
+    start_time = start_time,
+    runtime_secs = runtime,
+    n_clusters = k,
+    cluster_sizes = list(table(kmobject$cluster)),  # stores as list column
+    sil_avg = sil_avg,
+    sil_sd = sil_sd
+  )
+  
+  tib1 <- bind_rows(tib1, results)
+  
+}
+
+print(tib1)
+
+#interesting, the sil avg and sd are identical through these 50. This is a bit weird, will need to check this. But! this is very good. This is the beginning of usable data. 
+
+```
+
 
 
 
