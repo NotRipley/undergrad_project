@@ -102,16 +102,59 @@ seurat_from_params <- function(batchCells, group.prob, de.prob, nGenes, proj_nam
   
 }
 
+
+# seurat_object - on which we want to perform our clustering
+preprocess <- function(seurat_object) {
+  # takes seurat object and performs sctransform and pca steps
+  
+  stopifnot(
+    (class(seurat_object) == "Seurat")
+  )
+  
+  seurat_object <- SCTransform(seurat_object, verbose = FALSE)
+  
+  seurat_object <- RunPCA(seurat_object, verbose = FALSE)
+  
+  return(seurat_object)
+  
+}
+
+# one thing we really need to check is if the pbmc is single cell - 99% sure it is but conscious I haven't actually checked. 
+
+# now, we have seurat objects, sctransformed (normalised and scaled and high var features identified etc) and PCA'd, and we want to cluster them. The easiest to implement will be Louvain and then Leiden, as they are choices that actually make sense. slightly harder to implement will be kmeans, and slightly harder than that will be dbscan. We start with kmeans as nice middle ground. 
+
+# in terms of time efficiency, make it exist first, then make it good. we can ask AI for all the timesaving tips about something that exists, but it's not useful if we're getting it to write the function in the first place. so we begin. 
+
+# seurat_object - a processed seurat object
+# npcs - number of pcs to consider
+# k - numer of clusters
+run_kmeans <- function(seurat_object, npcs, k) {
+  # takes a processed seurat object, runs kmeans on it and returns an object of class kmeans
+  
+  stopifnot(
+    (class(seurat_object) == "Seurat"), 
+    is.numeric(npcs),
+    is.numeric(k)
+  )
+  
+  pc_embeddings <- Embeddings(seurat_object, reduction = "pca")[, 1:npcs]
+  
+  kmobject <- kmeans(pc_embeddings, centers = k, nstart = 25)
+  
+  return(kmobject)
+  
+}
+
 ```
 
 ```{r Simulated Dataset}
 
-seurat1 <- seurat_from_params(
+simulated1 <- seurat_from_params(
   batchCells = 500,
   group.prob = c(0.25, 0.25, 0.25, 0.25),
   de.prob = 0.2, 
   nGenes = 3000,
-  proj_name = "seurat1"
+  proj_name = "simulated1"
 )
 
 ```
@@ -154,6 +197,20 @@ RESULTS <- tibble(
   arandi = numeric()
 )
 
+
+```
+
+
+
+```{r Scratch}
+
+p_simulated1 <- preprocess(simulated1)
+
+km_simulated1 <- run_kmeans(p_simulated1, 30, 4)
+
+# ok so this seems to be working about as intended.
+# since we're not going to have to generalise to dataset (we're only going to do 2 or 3) I'm ok with choosing k manually, for now at least. 
+# now we get our index extraction.
 
 ```
 
