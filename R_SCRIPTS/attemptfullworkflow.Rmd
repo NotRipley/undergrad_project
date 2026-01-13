@@ -197,7 +197,7 @@ RESULTS <- tibble(
   start_time = POSIXct(),
   runtime = numeric(),
   
-  cluster_numer = integer(),
+  cluster_number = integer(),
   cluster_sizes = list(),
   
   sil_avg = numeric(),
@@ -235,14 +235,41 @@ sil1 <- silhouette_score(embed1, km_simulated1$cluster)
 
 p_simulated1 <- preprocess(simulated1)
 
-tib1 <- tibble()
+tib1 <- tibble(
+  run_name = character(),
+  algorithm = character(),
+  
+  k = integer(),
+  eps = numeric(),
+  minpts = integer(),
+  resolution = numeric(),
+  
+  dataset = character(),
+  ncells = integer(),
+  nfeatures = integer(),
+  npcs = integer(),
+  
+  repindex = integer(),
+  random_seed = numeric(),
+  start_time = POSIXct(),
+  runtime = numeric(),
+  
+  cluster_number = integer(),
+  cluster_sizes = list(),
+  
+  sil_avg = numeric(),
+  sil_sd = numeric(),
+  arandi = numeric()
+)
 
 for (i in 1:50) {
   # Set parameters
   k <- 4
   n_pcs <- 30
   rep_index <- i
-  seed <- 123 + i  # Different seed per rep is standard practice
+  cat("rep number", i, " \n")
+  seed <- 123 + i
+  cat("seed for this run is", seed, " \n")
   
   # Start timing
   start_time <- Sys.time()
@@ -256,6 +283,9 @@ for (i in 1:50) {
   sil_avg <- sil_both[[1]]
   sil_sd <- sil_both[[2]]
   
+  # calculate gap stat of the clustering
+  gap <- clusGap()
+  
   # End timing
   end_time <- Sys.time()
   runtime <- as.numeric(difftime(end_time, start_time, units = "secs"))
@@ -263,28 +293,36 @@ for (i in 1:50) {
   # Compile results
   results <- tibble(
     algorithm = "kmeans",
-    parameters = paste0("k=", k, ", nstart=25"),
-    dataset = "simulated1",  # or whatever your dataset name is
-    n_cells = ncol(p_simulated1),
-    n_features = nrow(p_simulated1),
-    n_pcs = n_pcs,
-    repetition = i,
-    seed = seed,
+    k = k,
+    dataset = "simulated1",
+    ncells = ncol(p_simulated1),
+    nfeatures = nrow(p_simulated1),
+    npcs = n_pcs,
+    repindex = i,
+    random_seed = seed,
     start_time = start_time,
-    runtime_secs = runtime,
-    n_clusters = k,
-    cluster_sizes = list(table(kmobject$cluster)),  # stores as list column
+    runtime = runtime,
+    cluster_number = k,
+    cluster_sizes = list(table(kmobject$cluster)),
     sil_avg = sil_avg,
     sil_sd = sil_sd
   )
   
-  tib1 <- bind_rows(tib1, results)
+  tib1 <- add_row(tib1, results)
   
 }
 
 print(tib1)
 
 #interesting, the sil avg and sd are identical through these 50. This is a bit weird, will need to check this. But! this is very good. This is the beginning of usable data. 
+
+```
+
+
+
+```{r Scratch 2}
+
+
 
 ```
 
