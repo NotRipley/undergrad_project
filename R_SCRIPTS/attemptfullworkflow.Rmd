@@ -202,6 +202,7 @@ pbmc <- CreateSeuratObject(counts = pbmc_data)
 ```
 
 
+
 ```{r Init Results Dataframe}
 
 RESULTS <- tibble(
@@ -239,6 +240,8 @@ one thing we really need to check is if the pbmc is single cell - 99% sure it is
 ```{r Trying to Spit out Some Results mostly AI SLOP}
 
 p_simulated1 <- preprocess(simulated1)
+
+# p_simulated1 <- preprocess(pbmc)
 
 tib1 <- tibble(
   run_name = character(),
@@ -336,9 +339,11 @@ print(tib1)
 
 
 
-seurat_to_kmeans <- function(seurat, kmax, n_bootstrap, nstart) {
+seurat_to_kmeans <- function(p_seurat, kmax, n_bootstrap, nstart) {
   # takes pre-processed seurat object, estimates a good k with clusGap(), then returns a list which is cluster assignments (i.e. the matrix that cluster quality metrics will act on) and then the kmobject
   
+  embeddings <- Embeddings(p_seurat,  reduction = "pca")
+  clusgapvalue <- clusGap(embeddings, FUNcluster = kmeans, K.max = 10)
   
   
   
@@ -411,7 +416,7 @@ davies_bouldin_score <- function(pc_embeddings, clustering) {
 }
 
 modularity_score <- function(pc_embeddings, clustering) {
-  
+  # need to convert to a graph first 
     
   
 }
