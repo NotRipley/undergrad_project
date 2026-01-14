@@ -61,7 +61,11 @@ suppressPackageStartupMessages({
   library(Seurat)
   library(tidyverse)
   library(cluster)
+  library(fpc)
+  library(clusterSim)
 })
+
+
 
 ```
 
@@ -153,6 +157,28 @@ silhouette_score <- function(pc_embeddings, clustering) {
   
 }
 
+# pc_embeddings - from Embeddings(seurat_object, reduction = "pca")
+# clustering - as usual a vector of cluster assignments eg from kmeans$cluster
+calinski_harabasz_score <- function(pc_embeddings, clustering) {
+  # takes pc embeddings and clustering vector, returns calinhara index
+  
+  ch_index <- fpc::calinhara(dist(pc_embeddings), clustering)
+  
+  return(ch_index)
+  
+}
+
+# pc_embeddings - from Embeddings(seurat_object, reduction = "pca")
+# clustering - as usual a vector of cluster assignments eg from kmeans$cluster
+davies_bouldin_score <- function(pc_embeddings, clustering) {
+  # takes pc embeddings and clustering, returns davies_bouldin score
+  
+  db_index <- index.DB(pc_embeddings, clustering)
+  
+  return(db_index[[1]])
+  
+}
+
 ```
 
 ```{r Simulated Dataset}
@@ -238,7 +264,8 @@ tib1 <- tibble(
   
   sil_avg = numeric(),
   sil_sd = numeric(),
-  arandi = numeric()
+  calinski_harabasz = numeric(),
+  davies_bouldin = numeric()
 )
 
 for (i in 1:50) {
@@ -262,8 +289,11 @@ for (i in 1:50) {
   sil_avg <- sil_both[[1]]
   sil_sd <- sil_both[[2]]
   
-  # calculate gap stat of the clustering
-  gap <- clusGap()
+  # calculate calinksi-harabasz
+  ch = calinski_harabasz_score(Embeddings(p_simulated1, reduction = "pca"), kmobject$cluster)
+  
+  # same for davies-bouldin
+  db = davies_bouldin_score(Embeddings(p_simulated1, reduction = "pca"), kmobject$cluster)
   
   # End timing
   end_time <- Sys.time()
@@ -284,7 +314,10 @@ for (i in 1:50) {
     cluster_number = k,
     cluster_sizes = list(table(kmobject$cluster)),
     sil_avg = sil_avg,
-    sil_sd = sil_sd
+    sil_sd = sil_sd,
+    calinski_harabasz = ch,
+    davies_bouldin = db
+    
   )
   
   tib1 <- add_row(tib1, results)
@@ -299,7 +332,7 @@ print(tib1)
 
 
 
-```{r Scratch 2}
+```{r run algorithm functions}
 
 
 
@@ -312,16 +345,24 @@ seurat_to_kmeans <- function(seurat, kmax, n_bootstrap, nstart) {
 }
 
 seurat_to_dbscan <- function() {
-  # takes seurat and estimates eps and minpts based on the data. clusters by dbscan and returns list of clustering and dbscan full object. 
+  # takes preprocessed seurat and estimates eps and minpts based on the data. clusters by dbscan and returns list of clustering and dbscan full object. 
   
+  
+}
+
+seurat_to_hierarchical <- function() {
+  # unsure whether to do this one as it's another standard algorithm that isn't so much suited to the task 
   
 }
 
 seurat_to_louvain <- function() {
+  #takes preprocessed seurat and estimates resolution from the data. runs Louvain algorithm and returns list of clustering and louvain call full object.
   
 }
 
-seurat_to_leiden
+seurat_to_leiden <- function() {
+  # takes preprocessed seurat object and runs Leiden algorithm. returns list of clustering and leiden call full object.
+}
 
 ```
 
@@ -329,7 +370,10 @@ seurat_to_leiden
 And then we want to get our functions for cluster quality assessment. We want calinkski-harabasz, davies-bouldin, silhouette, and then modularity seems a decent one since it's the reward function for Louvain? We can see what Leiden's reward function is and maybe include that.
 
 
-```{r Scratch 3}
+I think that a good move soon will be to update these functions to take the whole seurat object maybe. We want to make our life on the actual coding end easy and have the complexity be hidden in the functions. 
+
+
+```{r quality index functions}
 
 # we already have silhouette score, copied here
 
@@ -344,17 +388,31 @@ silhouette_score <- function(pc_embeddings, clustering) {
   
 }
 
+
+# pc_embeddings - from Embeddings(seurat_object, reduction = "pca")
+# clustering - as usual a vector of cluster assignments eg from kmeans$cluster
 calinski_harabasz_score <- function(pc_embeddings, clustering) {
   
+  ch_index <- fpc::calinhara(dist(pc_embeddings), clustering)
   
+  return(ch_index)
   
 }
 
+# pc_embeddings - from Embeddings(seurat_object, reduction = "pca")
+# clustering - as usual a vector of cluster assignments eg from kmeans$cluster
 davies_bouldin_score <- function(pc_embeddings, clustering) {
+  # takes pc embeddings and clustering, returns davies_bouldin score
+  
+  db_index <- index.DB(pc_embeddings, clustering)
+  
+  return(db_index)
   
 }
 
 modularity_score <- function(pc_embeddings, clustering) {
+  
+    
   
 }
 
