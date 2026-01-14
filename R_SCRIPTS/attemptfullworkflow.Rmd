@@ -210,27 +210,6 @@ RESULTS <- tibble(
 
 one thing we really need to check is if the pbmc is single cell - 99% sure it is but conscious I haven't actually checked. 
 
-```{r Scratch}
-
-p_simulated1 <- preprocess(simulated1)
-
-km_simulated1 <- run_kmeans(p_simulated1, 30, 4)
-
-# ok so this seems to be working about as intended.
-# since we're not going to have to generalise to dataset (we're only going to do 2 or 3) I'm ok with choosing k manually, for now at least. 
-# now we get our index extraction. so which did we wanna do? silhouette first. Then we can do a run of 50 reps and get 50 rows in our tibble named draft or smth. because we haven't brought through the true clustering yet, we can't quite do arandi. so for now we do the most useful one which will be silhouette.
-
-# but, what we want to pass to our silhouette score function, is just the original matrix (sparse or not who cares) and the clustering tag. so that we can modularise based on algorithm and index. 
-
-embed1 <- Embeddings(p_simulated1, reduction = "pca")
-sil1 <- silhouette_score(embed1, km_simulated1$cluster)
-
-# so given several factors that should affect the clustering: simulated (makes it better in this case), kmeans (worse since algorithm not the best), given true number of clusters (better), we see at least a reasonable average sil score of .258 in this first simulation, with a sd of 0.041. let's repeat this a bunch, and see if we can then average them.
-
-```
-
-
-
 ```{r Trying to Spit out Some Results mostly AI SLOP}
 
 p_simulated1 <- preprocess(simulated1)
@@ -324,8 +303,61 @@ print(tib1)
 
 
 
+seurat_to_kmeans <- function(seurat, kmax, n_bootstrap, nstart) {
+  # takes pre-processed seurat object, estimates a good k with clusGap(), then returns a list which is cluster assignments (i.e. the matrix that cluster quality metrics will act on) and then the kmobject
+  
+  
+  
+  
+}
+
+seurat_to_dbscan <- function() {
+  # takes seurat and estimates eps and minpts based on the data. clusters by dbscan and returns list of clustering and dbscan full object. 
+  
+  
+}
+
+seurat_to_louvain <- function() {
+  
+}
+
+seurat_to_leiden
+
 ```
 
 
+And then we want to get our functions for cluster quality assessment. We want calinkski-harabasz, davies-bouldin, silhouette, and then modularity seems a decent one since it's the reward function for Louvain? We can see what Leiden's reward function is and maybe include that.
 
+
+```{r Scratch 3}
+
+# we already have silhouette score, copied here
+
+# pc_embeddings - the pc embeddings from running Embeddings(seurat_object, reduction = "pca")
+# clustering - vector of cluster assignments eg from kmeans$cluster
+silhouette_score <- function(pc_embeddings, clustering) {
+  # takes pc embeddings and clustering and returns silhouette mean, then sd
+  
+  sil <- silhouette(clustering, dist(pc_embeddings))
+  
+  return(list(mean(sil[, 3]), sd(sil[, 3])))
+  
+}
+
+calinski_harabasz_score <- function(pc_embeddings, clustering) {
+  
+  
+  
+}
+
+davies_bouldin_score <- function(pc_embeddings, clustering) {
+  
+}
+
+modularity_score <- function(pc_embeddings, clustering) {
+  
+}
+
+
+```
 
