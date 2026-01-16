@@ -31,7 +31,7 @@ So for each clustering attempt, we store:
   - the sizes of them
 - the quality metrics
   - silhouette avg
-  - silhouette sd - because silhouette is a per-node property and not initially a gobal one, it has some variance
+  - silhouette sd - because silhouette is a per-node property and not initially a global one, it has some variance
   - the adj rand index
   - any more that we want - this can be considered an easy way to expand the scope i think
 - then any biological context that we want to add
@@ -237,11 +237,9 @@ RESULTS <- tibble(
 
 one thing we really need to check is if the pbmc is single cell - 99% sure it is but conscious I haven't actually checked. 
 
-```{r Trying to Spit out Some Results mostly AI SLOP}
+```{r Trying to Spit out Some Results}
 
 p_simulated1 <- preprocess(simulated1)
-
-# p_simulated1 <- preprocess(pbmc)
 
 tib1 <- tibble(
   run_name = character(),
@@ -283,7 +281,7 @@ for (i in 1:50) {
   # Start timing
   start_time <- Sys.time()
   
-  # Set seed and run clustering
+  # Set seed and do clustering
   set.seed(seed)
   kmobject <- run_kmeans(p_simulated1, npcs = n_pcs, k = 4)
   
@@ -302,7 +300,7 @@ for (i in 1:50) {
   end_time <- Sys.time()
   runtime <- as.numeric(difftime(end_time, start_time, units = "secs"))
   
-  # Compile results
+  # Add to the tibble tib1
   results <- tibble(
     algorithm = "kmeans",
     k = k,
@@ -328,8 +326,6 @@ for (i in 1:50) {
 }
 
 print(tib1)
-
-#interesting, the sil avg and sd are identical through these 50. This is a bit weird, will need to check this. But! this is very good. This is the beginning of usable data. 
 
 ```
 
@@ -370,12 +366,6 @@ seurat_to_leiden <- function() {
 }
 
 ```
-
-
-And then we want to get our functions for cluster quality assessment. We want calinkski-harabasz, davies-bouldin, silhouette, and then modularity seems a decent one since it's the reward function for Louvain? We can see what Leiden's reward function is and maybe include that.
-
-
-I think that a good move soon will be to update these functions to take the whole seurat object maybe. We want to make our life on the actual coding end easy and have the complexity be hidden in the functions. 
 
 
 ```{r quality index functions}

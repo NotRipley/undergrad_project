@@ -12,6 +12,45 @@ library(tidyverse)
 ```{r Functions}
 
 
+# batchCells - a vector giving the number of cells per batch, ie two batches with 100 cells is (100, 100)
+# group.prob - vector specifying probabilities per group, ie (0.5, 0.5) will likely give two same sized groups
+# de.prob - probability that genes will be DE by group(?) i.e. that they'll differ more than just noise
+# nGenes - number of genes to simulate
+# all else we leave as default values. 
+make_a_bunch_of_datasets <- function(batchCells, group.prob, de.prob, nGenes, proj_name, n_datasets) {
+  # takes parameters specified and returns a number of seurat objects to those specifications, just in a list. they'll be slightly different since theres randomness and we make sure the random seed is different each time. 
+  
+  # a bit of input validation
+  stopifnot(
+    is.numeric(batchCells),
+    is.numeric(group.prob),
+    is.numeric(de.prob),
+    is.numeric(nGenes),
+    is.character(proj_name)
+  ) 
+  
+  # initialise and set params
+  params <- newSplatParams()
+  
+  params <- setParams(params, update = list(
+    batchCells = batchCells, 
+    group.prob = group.prob, 
+    de.prob = de.prob,
+    nGenes = nGenes
+    ))
+  
+  # simulate based on those parameters
+  sim <- splatSimulate(params, method = "groups")
+  
+  counts_matrix <- counts(sim)
+  seurat_obj <- CreateSeuratObject(counts = counts_matrix, project = proj_name)
+  
+  # then we want to add the true labelling in case we want to do arandi
+  seurat_obj$true_labelling <- colData(sim)$Group
+  
+  return(seurat_obj)
+  
+}
 
 ```
 
