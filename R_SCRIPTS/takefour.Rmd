@@ -348,6 +348,8 @@ legend("topright", legend = unique(db$cluster),
 # we will use fvizcluster from factoextra for data visualisation of the clustering. 
 # what would be amazing would be to recreate some of those plots where dbscan clearly outperforms kmeans, and then go for a high dim example and show (hopefully) that it fails before kmeans? or fails on noisy data, sooner and more severely than kmeans. is my prediction at least. 
 ```
+
+
 ```{r Visualising the Comparison}
 
 # we want to make several functions, whereby I can easily generate different types of data. I think I want my standard very spherical one, and then one w here the clusters are very overlapped so that dbscan might be better and sorting them based on density. i hope?
