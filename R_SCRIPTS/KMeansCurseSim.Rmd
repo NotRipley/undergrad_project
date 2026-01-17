@@ -3,7 +3,7 @@ title: "KMeansCurseSim"
 output: html_document
 ---
 
-Here, we're going to copy across the relevant parts of "takefour.Rmd". Then, we will write a workflow in pseudocode, neaten them up, and produce a graph with one dataset (artificial, sliced), one algorithm (kmeans), and one metric (calinhara). Once we've done this and sufficiently observed the curse of dimensionality with it, IF it's quick and easy, we can move on to adding to either of those three sections. 
+Here, we're going to copy across the relevant parts of "takefour.Rmd". Then, we will write a workflow in pseudocode, neaten them up, and produce a graph with one dataset (artificial, sliced), one algorithm (kmeans), and one metric (Adjusted Rand Index). Once we've done this and sufficiently observed the curse of dimensionality with it, IF it's quick and easy, we can move on to adding to either of those three sections. 
 
 It will be REALLY nice to have this bit done such that we can write about it. Ok. We begin. 
 
@@ -18,84 +18,106 @@ library(mclust) #for more clustering specifically the arandi
 
 ```{r Functions}
 
-# Creates a centre of dimension n, centred at the n-dim point where each entry 
-# is x, and adds N dimensions of gaussian noise
-sample_maker_noisy <- function(n, m, iteration, N) {
-  # n - useful features
-  # m - observations per feature
-  # x - symmetrical location of the centre
-  # N - number of noise dimensions
+# m - number of rows per cluster
+# n - number of dimensions for the dataset (number of columns)
+# N - noise dimensions to be added to the dataset 'in post' of the generation
+# k - clusters to generate
+# Overlap - boolean variable, whether the variances of each cluster should be inflated s.t. they overlap, or should they be well-separated?
+# Equal-In - boolean - should my clusters be spherical, or 'ovoid'?
+simple_data <- function(m, n, N, k, overlap, equalin) {
   
-  temp_mean <- iteration*1.5
-  temp_sd <- 2
+  # make sure nothing's gonna break
+  stopifnot(
+    is.logical(overlap), 
+    is.logical(equalin)
+    #is.logical(equalout)
+  )
   
-  # create the useful and noisy dimensions separately then combine into one matrix
-  mat_base <- matrix(rnorm(n*m, temp_mean, temp_sd), nrow = m, ncol = n)
-  mat_noise <- matrix(rnorm(N*m, 0, 2), nrow = m, ncol = N)
-  mat <- cbind(mat_base, mat_noise)
-  
-  # format data frame for output - add tag variable s.t. we can compute arandi later
-  df <- as.data.frame(mat)
-  names(df) <- paste0("var", seq_len(n))
-  df$tag <- iteration
-  
-  return(df)
-}
-
-
-# uses sample_maker_noisy to create one dataframe of k 'noisy' centres
-create_data_noisy <- function(k, n, m, N) {
-  # k - number of centres
-  # n - number of meaningful features 
-  # m - observations per feature
-  # N - number of features of noise (so the data will have n + N features in total)
-  # we expect N >> n
-  
-  frame_list <- list()
-  
-  # iterate through k centres and create the data for each
-  for (i in 1:k) {
-    frame_list[[i]] <- sample_maker_noisy(n = n, m = m, iteration = i, N = N)
-    print(paste0("MADE DATASET", i, "OF", k))
+  # check some options based on our arguments
+  if (overlap == TRUE) {
+    p_var <- rep(0.5, k) 
+  } else {
+    p_var <- rep(0.2, k)
   }
   
-  #make into one dataframe again with do.call
-  df <- data.frame(do.call(rbind, frame_list))
+  if (equalin == FALSE) {
+    p_var <- abs(matrix(rnorm(k, p_var[[1]], 0.25),  nrow = 1, ncol = k)) # might need slight adjusting
+    
+  }
   
-  return(df)
+  #if (equalout)
+  
+  unmerged <- list()
+  
+  # create centre data as separate matrices in 'unmerged'
+  for (i in 1:k) {
+    cat("generating cluster ", i, "... \n")
+    unmerged[[i]] <- matrix(rnorm(m*n, i, p_var[[i]]), nrow = m, ncol = n)
+    
+    noise <- matrix(rnorm(N*m, mean = 0, sd = 0.3), nrow = m, ncol = N)
+    unmerged[[i]] <- cbind(unmerged[[i]], noise)
+    
+    unmerged[[i]] <- cbind(unmerged[[i]], matrix(data = as.numeric(i), nrow = m, ncol = 1)) # add tag column
+    
+    cat("finished cluster ", i, "... \n")
+  }
+  
+  cat("finished all clusters... \n")
+  
+  frame <- as.data.frame(do.call(rbind, unmerged)) # smush the matrices together
+  
+  names(frame)[1:n] <- paste0("dim", 1:n)
+  if (N != 0) {
+    names(frame)[(n + 1):(n + N)] <- paste0("noise", 1:N)
+  }
+  
+  names(frame)[ncol(frame)] <- "Tag"
+  
+  return(frame)
+  
 }
 
-# uses create_data_noisy to generate adjusted rand index scores per a passed vector of dimensions
-scores_generator_arandi_noisy <- function(k, n, m, N, v) {
-  # k - number of centres
-  # n - number of meaningful dimensions
-  # m - observations per centre
-  # N - number of noise dimensions
+# uses simple_data to slice, cluster and score a pssed dataset.
+slice_cluster_score <- function(data, v) {
+  # data - dataset to be sliced n scored
   # v - vector of dimension numbers to take arandi score at
   
-  #create big dataset
-  max_dim = max(v)
-  cat("Generating data of", max_dim, "dimensions... \n")
-  data <- create_data_noisy(k, n, m, N)
-  cat("Completed data generation... \n")
+  #get true labels
+  true_labels <- data$Tag
   
-  #get true labelling
-  true_labels <- data$tag
+  #drop the tag col 
+  data_no_tag <- select(data, -Tag)
   
-  #haven't done this in the other frames but just in case, drop the tag col 
-  data_no_tag <- data[, -which(names(data) == "tag"), drop = FALSE]
-  
+  # initialise scores vector
   scores <- numeric(length(v))
   
-  # slice the dataset, kmeans it with true k, then add the arandi to scores vector
+  # slice the dataset, estimate k with gap statistic, then add the arandi to scores vector
   for (i in seq_along(v)) {
     
-    current_slice <- data_no_tag[, 1:v[i], drop = FALSE]
-    kmobject <- kmeans(current_slice, centers = k, nstart = 10, iter.max = 25)
+    # slice:
+    current_slice <- select(data_no_tag, 1:i)
+    
+    # cluster:
+    
+    # estimate k:
+    clusGapcall <- clusGap(
+      x = current_slice,
+      FUNcluster = kmeans,
+      K.max = 10
+    )
+    
+    k_estimated <- maxSE(clusGapcall$Tab[, "gap"],
+                         clusGapcall$Tab[, "SE.sim"], 
+                         method = "firstSEmax")
+    
+    # run kmeans:
+    kmobject <- kmeans(current_slice, 
+                       k_estimated,
+                       nstart = 25)
     
     scores[i] <- mclust::adjustedRandIndex(true_labels, kmobject$cluster)
     
-    cat("Dimension: ", v[i], "gives arandi score: ", round(scores[i], 4), " \n")
+    #cat("Dimension: ", v[i], "gives arandi score: ", round(scores[i], 4), " \n")
     
   }
   
@@ -109,19 +131,24 @@ scores_generator_arandi_noisy <- function(k, n, m, N, v) {
   
 }
 
+
+
 ```
 
 ```{r Making the Data for the Plot}
 
 log_sequence <- unique(round(10^seq(1, 4, length.out = 30)))
 
-output <- scores_generator_arandi_noisy(k = 3, n = 10, m = 200, v = log_sequence, N = max(log_sequence))
+test_data <- simple_data(200, 10, 10^4 - 10, 4, overlap = FALSE, equalin = TRUE)
+
+trial <- slice_cluster_score(test_data, log_sequence)
+
 ```
 
 
 ```{r Plot, echo=TRUE}
 
-plot1 <- ggplot(data = output, mapping  = aes(dimension, score)) +
+plot1 <- ggplot(data = trial, mapping  = aes(dimension, score)) +
   geom_point() +
   geom_smooth() +
   scale_x_log10() +
