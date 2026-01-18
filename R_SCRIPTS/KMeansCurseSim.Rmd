@@ -45,26 +45,44 @@ simple_data <- function(m, n, N, k, overlap, equalin) {
     
   }
   
-  #if (equalout)
+  # initialise entire result matrix
+  rowtotal <- m * k
+  coltotal <- n + N + 1
   
-  unmerged <- list()
+  result <- matrix(0, nrow = rowtotal, ncol = coltotal)
+  
+  # and initialise the noise that we'll add in
+  if (N > 0) {
+    all_the_noise <- matrix(rnorm(rowtotal * N, mean = 0, sd = 0.3), 
+                            nrow = rowtotal,
+                            ncol = N)
+  }
   
   # create centre data as separate matrices in 'unmerged'
   for (i in 1:k) {
     cat("generating cluster ", i, "... \n")
-    unmerged[[i]] <- matrix(rnorm(m*n, i, p_var[[i]]), nrow = m, ncol = n)
     
-    noise <- matrix(rnorm(N*m, mean = 0, sd = 0.3), nrow = m, ncol = N)
-    unmerged[[i]] <- cbind(unmerged[[i]], noise)
+    row_start <- (i - 1) * m + 1
+    row_end <- i * m
     
-    unmerged[[i]] <- cbind(unmerged[[i]], matrix(data = as.numeric(i), nrow = m, ncol = 1)) # add tag column
+    # add in the signal bit
+    result[row_start:row_end, 1:n] <- rnorm(m * n, i, p_var[[i]])
+    
+    # add in the noise bit
+    if (N > 0) {
+      result[row_start:row_end, (n + 1):(n + N)] <- all_the_noise[row_start:row_end, ]
+    }
+    
+    # add in the tag
+    result[row_start:row_end, coltotal] <- i
     
     cat("finished cluster ", i, "... \n")
   }
   
   cat("finished all clusters... \n")
   
-  frame <- as.data.frame(do.call(rbind, unmerged)) # smush the matrices together
+  # convert it to data frame
+  frame <- as.data.frame(result)
   
   names(frame)[1:n] <- paste0("dim", 1:n)
   if (N != 0) {
@@ -78,7 +96,7 @@ simple_data <- function(m, n, N, k, overlap, equalin) {
 }
 
 # uses simple_data to slice, cluster and score a pssed dataset.
-slice_cluster_score <- function(data, v) {
+slice_cluster_score <- function(data, v, true_k) {
   # data - dataset to be sliced n scored
   # v - vector of dimension numbers to take arandi score at
   
@@ -95,24 +113,25 @@ slice_cluster_score <- function(data, v) {
   for (i in seq_along(v)) {
     
     # slice:
-    current_slice <- select(data_no_tag, 1:i)
+    current_slice <- data_no_tag[, 1:i, drop = FALSE]
     
     # cluster:
     
     # estimate k:
-    clusGapcall <- clusGap(
-      x = current_slice,
-      FUNcluster = kmeans,
-      K.max = 10
-    )
+    # clusGapcall <- clusGap(
+    #   x = current_slice,
+    #   FUNcluster = kmeans,
+    #   K.max = 10,
+    #   B = 5
+    # )
     
-    k_estimated <- maxSE(clusGapcall$Tab[, "gap"],
-                         clusGapcall$Tab[, "SE.sim"], 
-                         method = "firstSEmax")
+    # k_estimated <- maxSE(clusGapcall$Tab[, "gap"],
+    #                      clusGapcall$Tab[, "SE.sim"], 
+    #                      method = "firstSEmax")
     
     # run kmeans:
     kmobject <- kmeans(current_slice, 
-                       k_estimated,
+                       centers = true_k,
                        nstart = 25)
     
     scores[i] <- mclust::adjustedRandIndex(true_labels, kmobject$cluster)
@@ -137,11 +156,11 @@ slice_cluster_score <- function(data, v) {
 
 ```{r Making the Data for the Plot}
 
-log_sequence <- unique(round(10^seq(1, 4, length.out = 30)))
+log_sequence <- unique(round(10^seq(2, 6, length.out = 10)))
 
-test_data <- simple_data(200, 10, 10^4 - 10, 4, overlap = FALSE, equalin = TRUE)
+test_data <- simple_data(m = 200, n = 10, N = 10^6 - 10, k = 4, overlap = TRUE, equalin = TRUE)
 
-trial <- slice_cluster_score(test_data, log_sequence)
+trial <- slice_cluster_score(data = test_data, v = log_sequence, true_k = 4)
 
 ```
 
