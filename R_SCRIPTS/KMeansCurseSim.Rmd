@@ -3,9 +3,7 @@ title: "KMeansCurseSim"
 output: html_document
 ---
 
-Here, we're going to copy across the relevant parts of "takefour.Rmd". Then, we will write a workflow in pseudocode, neaten them up, and produce a graph with one dataset (artificial, sliced), one algorithm (kmeans), and one metric (Adjusted Rand Index). Once we've done this and sufficiently observed the curse of dimensionality with it, IF it's quick and easy, we can move on to adding to either of those three sections. 
-
-It will be REALLY nice to have this bit done such that we can write about it. Ok. We begin. 
+Copied across parts of "takefour.Rmd". Neatened and rerun on artificial simple data. 
 
 ```{r Libraries}
 
