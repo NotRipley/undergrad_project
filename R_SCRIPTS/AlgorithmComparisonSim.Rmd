@@ -6,19 +6,26 @@ output: html_document
 ```{r Libraries}
 
 library(tidyverse)
+library(scater)
+library(splatter)
+library(Seurat)
+library(cluster)
 
 ```
 
 ```{r Functions}
 
 
-# batchCells - a vector giving the number of cells per batch, ie two batches with 100 cells is (100, 100)
-# group.prob - vector specifying probabilities per group, ie (0.5, 0.5) will likely give two same sized groups
-# de.prob - probability that genes will be DE by group(?) i.e. that they'll differ more than just noise
-# nGenes - number of genes to simulate
-# all else we leave as default values. 
-make_a_bunch_of_datasets <- function(batchCells, group.prob, de.prob, nGenes, proj_name, n_datasets) {
-  # takes parameters specified and returns a number of seurat objects to those specifications, just in a list. they'll be slightly different since theres randomness and we make sure the random seed is different each time. 
+# takes parameters specified and returns a number of seurat objects to those specifications, just in a list. they'll be slightly different since theres randomness and we make sure the random seed is different each time. 
+
+make_a_dataset <- function(batchCells, group.prob, de.prob, nGenes, proj_name) {
+  
+  # batchCells - a vector giving the number of cells per batch, ie two batches with 100 cells is (100, 100)
+  # group.prob - vector specifying probabilities per group, ie (0.5, 0.5) will likely give two same sized groups
+  # de.prob - probability that genes will be DE by group(?) i.e. that they'll differ more than just noise
+  # nGenes - number of genes to simulate
+  # proj_name - character name of dataset or for the parameter object
+  # all else we leave as default values. 
   
   # a bit of input validation
   stopifnot(
@@ -52,6 +59,8 @@ make_a_bunch_of_datasets <- function(batchCells, group.prob, de.prob, nGenes, pr
   
 }
 
+
+
 ```
 
 ```{r Real Data}
@@ -60,20 +69,84 @@ make_a_bunch_of_datasets <- function(batchCells, group.prob, de.prob, nGenes, pr
 
 ```
 
+At present my biggest concern with the below data is that the SCTransform is hanging on to only the 100 most variable genes. I have not found this answer immediate from documentation so I need to dig a bit more for that, or maybe am missing something. 
+
 ```{r Simulated Data}
 
+sim1 <- make_a_dataset(
+  batchCells = 300,
+  group.prob = c(0.25, 0.25, 0.3, 0.2),
+  de.prob = 0.2, 
+  nGenes = 2000,
+  proj_name = "sim1"
+)
 
+sct_sim1 <- SCTransform(sim1)
 
 ```
 
 ```{r More Functions}
 
+# take SCTransformed seurat (i.e ready for dim red and clustering) and then run KMeans on its counts matrix with no dimensionality reduction
 
+run_kmeans <- function(sct_seurat_object, k = NULL) {
+  
+    sct_scaled <- LayerData(
+    object = sct_seurat_object, 
+    assay = "SCT", 
+    layer = "scale.data")
+
+  if (is.numeric(k) == TRUE) {
+    centers = k
+  } else {
+    clusGapcall <- clusGap(
+      x = sct_scaled,
+      FUNcluster = kmeans,
+      K.max = 10,
+      B = 5
+    )
+    
+    centers <- maxSE(clusGapcall$Tab[, "gap"],
+                     clusGapcall$Tab[, "SE.sim"],
+                     method = "firstSEmax")
+  }
+  
+  # run kmeans:
+  kmobject <- kmeans(sct_scaled,
+                     centers = centers,
+                     nstart = 25)
+  
+  return(kmobject)
+  
+}
+
+run_PCAkmeans <- function(sct_seurat_object, k = NULL) {
+  
+  PCA_sct_seurat_object <- RunPCA(sct_seurat_object, npcs = 100, verbose = TRUE)
+  
+  # then we want to do KMeans on these PCs. 
+  # crucially we want to justify the number of PCs we run it on. 
+  
+  
+  
+  
+}
+
+run_louvain <- function() {
+  
+}
+
+run_PCAlouvain <- function() {
+  
+}
 
 ```
 
 ```{r Simulate}
 
+kmeans_sct_sim1 <- run_kmeans(sct_sim1)
+
+kmeans_sct_sim1$betweenss / kmeans_sct_sim1$totss
 
 
 ```
