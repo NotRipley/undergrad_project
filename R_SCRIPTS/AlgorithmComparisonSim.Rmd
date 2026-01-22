@@ -75,13 +75,16 @@ At present my biggest concern with the below data is that the SCTransform is han
 
 sim1 <- make_a_dataset(
   batchCells = 300,
-  group.prob = c(0.25, 0.25, 0.3, 0.2),
-  de.prob = 0.2, 
+  group.prob = c(0.25, 0.25, 0.25, 0.25),
+  de.prob = 0.3, 
   nGenes = 2000,
   proj_name = "sim1"
 )
 
-sct_sim1 <- SCTransform(sim1)
+sct_sim1 <- SCTransform(sim1) 
+
+
+
 
 ```
 
@@ -91,7 +94,7 @@ sct_sim1 <- SCTransform(sim1)
 
 run_kmeans <- function(sct_seurat_object, k = NULL) {
   
-    sct_scaled <- LayerData(
+  sct_scaled <- LayerData(
     object = sct_seurat_object, 
     assay = "SCT", 
     layer = "scale.data")
@@ -120,23 +123,57 @@ run_kmeans <- function(sct_seurat_object, k = NULL) {
   
 }
 
+# Takes a seurat object post-SCTransform. Estimates a workable number of PCs, runs PCA, clusters on that number of PCs.
+
 run_PCAkmeans <- function(sct_seurat_object, k = NULL) {
+  
+  # sct_seurat_object - object of class seurat with SCTransform applied
+  # k - centers for KMeans. If left NULL, estimated with Gap Statistic
   
   PCA_sct_seurat_object <- RunPCA(sct_seurat_object, npcs = 100, verbose = TRUE)
   
-  # then we want to do KMeans on these PCs. 
-  # crucially we want to justify the number of PCs we run it on. 
+  # pull PCA embeddings
+  embeddings <- Embeddings(PCA_sct_seurat_object)
   
+  # run kmeans
+
+  if (is.numeric(k) == TRUE) {
+    centers = k
+  } else {
+    clusGapcall <- clusGap(
+      x = embeddings,
+      FUNcluster = kmeans,
+      K.max = 10,
+      B = 5
+    )
+    
+    centers <- maxSE(clusGapcall$Tab[, "gap"],
+                     clusGapcall$Tab[, "SE.sim"],
+                     method = "firstSEmax")
+  }
   
+  # run kmeans:
+  kmobject <- kmeans(embeddings,
+                     centers = centers,
+                     nstart = 25)
   
+  return(kmobject)
   
 }
 
-run_louvain <- function() {
-  
-}
+# Takes a seurat object post-SCTransform. Runs the Louvain Algorithm native to Seurat, IF we can make sure it's not doing any extra optimisation under the hood. Otherwise, we can pull the count data, make the SNN graph and cluster ourselves.
 
-run_PCAlouvain <- function() {
+run_louvain <- function(sct_seurat_object, resolution  = NULL) {
+  
+  sct_seurat_object <- sct_seurat_object |> 
+    RunPCA(npcs = 100) |> 
+    FindNeighbors(dims = 1:30)
+    
+  
+  
+  lv_sct <- FindClusters(sct_seurat_object, algorithm = 1)
+  
+  return(lv_sct)
   
 }
 
@@ -146,7 +183,25 @@ run_PCAlouvain <- function() {
 
 kmeans_sct_sim1 <- run_kmeans(sct_sim1)
 
-kmeans_sct_sim1$betweenss / kmeans_sct_sim1$totss
+pca_kmeans_sct_sim1 <- run_PCAkmeans(sct_sim1)
+
+lv_sct_sim1 <- run_louvain(sct_sim1)
+
+
+# for the louvain clustering
+
+p_sct_sim1 <- sct_sim1 |> 
+    RunPCA(npcs = 100) |> 
+    FindNeighbors(dims = 1:30)
+
+embeddings <- Embeddings(p_sct_sim1, reduction = "pca")[, 1:30]
+
+lv_clusters <- as.numeric(Idents(sct_sim1))
+dist_mat <- dist(embeddings)
+lv_sil <- silhouette(lv_clusters, dist_mat)
+lv_avg_sil <- mean(lv_sil[, 3])
+
+# then need to run louvain on this 
 
 
 ```
