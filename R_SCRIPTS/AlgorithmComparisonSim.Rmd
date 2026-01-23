@@ -201,7 +201,7 @@ dist_mat <- dist(embeddings)
 lv_sil <- silhouette(lv_clusters, dist_mat)
 lv_avg_sil <- mean(lv_sil[, 3])
 
-# then need to run louvain on this 
+# then need to run louvain on this
 
 
 ```
