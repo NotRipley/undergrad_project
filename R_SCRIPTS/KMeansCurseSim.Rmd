@@ -111,7 +111,8 @@ slice_cluster_score <- function(data, v, true_k) {
   for (i in seq_along(v)) {
     
     # slice:
-    current_slice <- data_no_tag[, 1:i, drop = FALSE]
+    current_slice <- data_no_tag[, 1:v[i], drop = FALSE] # changed to v[i]
+    cat(i, "done slicing \n")
     
     # cluster:
     
@@ -131,6 +132,8 @@ slice_cluster_score <- function(data, v, true_k) {
     kmobject <- kmeans(current_slice, 
                        centers = true_k,
                        nstart = 25)
+    
+    cat(i, "done clustering \n")
     
     scores[i] <- mclust::adjustedRandIndex(true_labels, kmobject$cluster)
     
@@ -154,9 +157,9 @@ slice_cluster_score <- function(data, v, true_k) {
 
 ```{r Making the Data for the Plot}
 
-log_sequence <- unique(round(10^seq(2, 6, length.out = 10)))
+log_sequence <- unique(round(10^seq(2, 4, length.out = 5)))
 
-test_data <- simple_data(m = 200, n = 10, N = 10^6 - 10, k = 4, overlap = TRUE, equalin = TRUE)
+test_data <- simple_data(m = 200, n = 10, N = 10^4 - 10, k = 4, overlap = TRUE, equalin = TRUE)
 
 trial <- slice_cluster_score(data = test_data, v = log_sequence, true_k = 4)
 
