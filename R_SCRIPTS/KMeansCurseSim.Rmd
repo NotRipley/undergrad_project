@@ -7,10 +7,11 @@ output: html_document
 
 ```{r Libraries}
 
-library(tidyverse) #for general stuff
-library(factoextra) #for clustering
-library(cluster) #for clustering
-library(mclust) #for more clustering specifically the arandi
+library(tidyverse) # for general stuff
+library(factoextra) # for clustering
+library(cluster) # for clustering
+library(mclust) # for more clustering specifically the arandi
+library(data.table) # for faster writing to csv
 
 ```
 
@@ -87,10 +88,11 @@ simple_data <- function(m, n, N, k, overlap) {
   
 }
 
-# uses simple_data to slice, cluster and score a pssed dataset.
-slice_cluster_score <- function(data, v, true_k) {
+# uses simple_data to slice, cluster and score a passed dataset.
+slice_cluster_score <- function(data, v, true_k = NULL) {
   # data - dataset to be sliced n scored
   # v - vector of dimension numbers to take arandi score at
+  # true_k - true number of clusters. if left unpassed, gap statistic will be used to estimate
   
   #get true labels
   true_labels <- data$Tag
@@ -123,11 +125,29 @@ slice_cluster_score <- function(data, v, true_k) {
     #                      method = "firstSEmax")
     
     # run kmeans:
+    
+    if (is.null(true_k)) {
+      # if k is null, we estimate it here
+      clusGapcall <- clusGap(
+        x = current_slice,
+        FUNcluster = kmeans,
+        K.max = 10,
+        B = 5 # maybe needs increased, this is comically low but for speed initially 5
+      )
+      
+      use_k <- maxSE(clusGapcall$Tab[, "gap"],
+                     clusGapcall$Tab[, "SE.sim"],
+                     method = "firstSEmax")
+      
+    } else {
+      use_k <- true_k
+    }
+    
     kmobject <- kmeans(current_slice, 
-                       centers = true_k,
+                       centers = use_k,
                        nstart = 25)
     
-    cat(i, "done clustering \n")
+    #cat(i, "done clustering \n")
     
     scores[i] <- mclust::adjustedRandIndex(true_labels, kmobject$cluster)
     
@@ -201,7 +221,11 @@ for (i in 1:length(generation_parameters)) {
 
 ```
 
-```{r Generation Loop Itself}
+we are kinda seeing that it takes ~20s to make each data set. so let's keep a running estimate of how this works. but yeah now we want to write these out to the appropriate folder along with the metadata file. 
+
+```{r Generation Loop Itself Estimating K}
+
+log_sequence <- unique(round(10^seq(2, 4, length.out = 5)))
 
 for (i in 1:10) {
   
@@ -213,7 +237,15 @@ for (i in 1:10) {
   end_time <- Sys.time()
   runtime <- end_time - start_time
   
-  cat("it took, ", runtime, " \n")
+  cat("it took ", runtime, " \n")
+  
+  temp_score <- slice_cluster_score(temp_set, log_sequence)
+  
+  cat("done the score for set", i, ", writing it out now \n")
+  
+  fwrite(temp_score, file = paste0("C:/Users/fmhfl/Desktop/Undergrad Project/undergrad_project/DATA/KMeansCurseSimTestSet/", metadata[i, "name"][[1]], ".csv"))
+  
+  cat("written out the ", i, "th file \n")
   
 }
 
