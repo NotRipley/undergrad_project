@@ -237,15 +237,25 @@ for (i in 1:10) {
   end_time <- Sys.time()
   runtime <- end_time - start_time
   
-  cat("it took ", runtime, " \n")
+  cat("it took ", runtime, " to make that data \n")
   
   temp_score <- slice_cluster_score(temp_set, log_sequence)
   
   cat("done the score for set", i, ", writing it out now \n")
   
+  end_time <- Sys.time()
+  runtime <- end_time - start_time
+  
+  cat("it took ", runtime, " to make and cluster that data \n")
+  
   fwrite(temp_score, file = paste0("C:/Users/fmhfl/Desktop/Undergrad Project/undergrad_project/DATA/KMeansCurseSimTestSet/", metadata[i, "name"][[1]], ".csv"))
   
   cat("written out the ", i, "th file \n")
+  
+  end_time <- Sys.time()
+  runtime <- end_time - start_time
+  
+  cat("it took", runtime, "for that whole loop ")
   
 }
 
