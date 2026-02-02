@@ -16,19 +16,17 @@ library(mclust) #for more clustering specifically the arandi
 
 ```{r Functions}
 
-# m - number of rows per cluster
+# m - number of rows in total - must be divisible by K
 # n - number of dimensions for the dataset (number of columns)
 # N - noise dimensions to be added to the dataset 'in post' of the generation
 # k - clusters to generate
 # Overlap - boolean variable, whether the variances of each cluster should be inflated s.t. they overlap, or should they be well-separated?
-# Equal-In - boolean - should my clusters be spherical, or 'ovoid'?
-simple_data <- function(m, n, N, k, overlap, equalin) {
+simple_data <- function(m, n, N, k, overlap) {
   
   # make sure nothing's gonna break
   stopifnot(
     is.logical(overlap), 
-    is.logical(equalin)
-    #is.logical(equalout)
+    m %% k == 0
   )
   
   # check some options based on our arguments
@@ -37,14 +35,10 @@ simple_data <- function(m, n, N, k, overlap, equalin) {
   } else {
     p_var <- rep(0.2, k)
   }
-  
-  if (equalin == FALSE) {
-    p_var <- abs(matrix(rnorm(k, p_var[[1]], 0.25),  nrow = 1, ncol = k)) # might need slight adjusting
     
-  }
   
   # initialise entire result matrix
-  rowtotal <- m * k
+  rowtotal <- m
   coltotal <- n + N + 1
   
   result <- matrix(0, nrow = rowtotal, ncol = coltotal)
@@ -60,11 +54,11 @@ simple_data <- function(m, n, N, k, overlap, equalin) {
   for (i in 1:k) {
     cat("generating cluster ", i, "... \n")
     
-    row_start <- (i - 1) * m + 1
-    row_end <- i * m
+    row_start <- (i - 1) * m / k + 1
+    row_end <- i * m / k
     
     # add in the signal bit
-    result[row_start:row_end, 1:n] <- rnorm(m * n, i, p_var[[i]])
+    result[row_start:row_end, 1:n] <- rnorm(m / k * n, i, p_var[[i]])
     
     # add in the noise bit
     if (N > 0) {
@@ -157,10 +151,71 @@ slice_cluster_score <- function(data, v, true_k) {
 
 ```{r Creating Datasets}
 
+# m consistent across all sets. cluster size varying. 3 at 3 clusters, 4 at 4, 3 at 5. 
+# creating a dataframe with these parameters to store alongside as a (very) primitive attempt at a metadata file
+
+metadata <- tibble(
+  
+  index = character(),
+  name = character(),
+  m = character(),
+  n = character(),
+  N = character(),
+  k = character(),
+  overlap = character()
+  
+)
+
+generation_parameters <- list(
+  
+  list(1, "set1", 1200, 10, 10^5 - 10, 3, TRUE),
+  list(2, "set2", 1200, 10, 10^5 - 10, 3, TRUE),
+  list(3, "set3", 1200, 10, 10^5 - 10, 3, FALSE),
+  list(4, "set4", 1200, 10, 10^5 - 10, 4, TRUE),
+  list(5, "set5", 1200, 10, 10^5 - 10, 4, TRUE),
+  list(6, "set6", 1200, 10, 10^5 - 10, 4, FALSE),
+  list(7, "set7", 1200, 10, 10^5 - 10, 4, FALSE),
+  list(8, "set8", 1200, 10, 10^5 - 10, 5, TRUE),
+  list(9, "set9", 1200, 10, 10^5 - 10, 5, TRUE),
+  list(10, "set10", 1200, 10, 10^5 - 10, 5, FALSE)
+  
+)
 
 
+temp_set <- do.call(simple_data, generation_parameters[[1]][3:7])
+metadata <- metadata |> add_row(index = generation_parameters[[1]][1], 
+                    name = generation_parameters[[1]][2],
+                    m = generation_parameters[[1]][3],
+                    n = generation_parameters[[1]][4],
+                    N = generation_parameters[[1]][5],
+                    k = generation_parameters[[1]][6],
+                    overlap = generation_parameters[[1]][7]
+                    )
 
+for (i in 1:length(generation_parameters)) {
+  for (j in 1:ncol(metadata)) {
+    
+    metadata[i,j] <- generation_parameters[[i]][j]
+  }
+}
 
+```
+
+```{r Generation Loop Itself}
+
+for (i in 1:10) {
+  
+  start_time <- Sys.time()
+  
+  temp_set <- do.call(simple_data, metadata[i, 3:7])
+  cat("made some data, ", i, " \n")
+  
+  end_time <- Sys.time()
+  runtime <- end_time - start_time
+  
+  cat("it took, ", runtime, " \n")
+  
+}
 
 ```
 
@@ -170,7 +225,7 @@ slice_cluster_score <- function(data, v, true_k) {
 
 log_sequence <- unique(round(10^seq(2, 4, length.out = 5)))
 
-test_data <- simple_data(m = 200, n = 10, N = 10^4 - 10, k = 4, overlap = TRUE, equalin = TRUE)
+test_data <- simple_data(m = 1200, n = 10, N = 10^4 - 10, k = 4, overlap = TRUE)
 
 trial <- slice_cluster_score(data = test_data, v = log_sequence, true_k = 4)
 
