@@ -3,7 +3,7 @@ title: "KMeansCurseSim"
 output: html_document
 ---
 
-Copied across parts of "takefour.Rmd". Neatened and rerun on artificial simple data. 
+
 
 ```{r Libraries}
 
@@ -154,6 +154,17 @@ slice_cluster_score <- function(data, v, true_k) {
 
 
 ```
+
+```{r Creating Datasets}
+
+
+
+
+
+
+```
+
+
 
 ```{r Making the Data for the Plot}
 
