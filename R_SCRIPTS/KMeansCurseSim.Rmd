@@ -176,13 +176,13 @@ slice_cluster_score <- function(data, v, true_k = NULL) {
 
 metadata <- tibble(
   
-  index = character(),
+  index = numeric(),
   name = character(),
-  m = character(),
-  n = character(),
-  N = character(),
-  k = character(),
-  overlap = character()
+  m = numeric(),
+  n = numeric(),
+  N = numeric(),
+  k = numeric(),
+  overlap = logical()
   
 )
 
@@ -202,15 +202,15 @@ generation_parameters <- list(
 )
 
 
-temp_set <- do.call(simple_data, generation_parameters[[1]][3:7])
-metadata <- metadata |> add_row(index = generation_parameters[[1]][1], 
-                    name = generation_parameters[[1]][2],
-                    m = generation_parameters[[1]][3],
-                    n = generation_parameters[[1]][4],
-                    N = generation_parameters[[1]][5],
-                    k = generation_parameters[[1]][6],
-                    overlap = generation_parameters[[1]][7]
-                    )
+#temp_set <- do.call(simple_data, generation_parameters[[1]][3:7])
+# metadata <- metadata |> add_row(index = generation_parameters[[1]][1], 
+#                     name = generation_parameters[[1]][2],
+#                     m = generation_parameters[[1]][3],
+#                     n = generation_parameters[[1]][4],
+#                     N = generation_parameters[[1]][5],
+#                     k = generation_parameters[[1]][6],
+#                     overlap = generation_parameters[[1]][7]
+#                     )
 
 for (i in 1:length(generation_parameters)) {
   for (j in 1:ncol(metadata)) {
