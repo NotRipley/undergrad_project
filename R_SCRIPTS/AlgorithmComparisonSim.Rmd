@@ -111,8 +111,9 @@ metadata <- metadata |>
     proj_name = as.character(proj_name),
     batchCells = as.numeric(batchCells),
     de.prob = as.numeric(de.prob),
-    group.prob = lapply(group.prob, as.numeric),
-    nGenes = as.numeric(nGenes)
+    nGenes = as.numeric(nGenes),
+    group.prob = strsplit(group.prob, "\\|") |>
+      lapply(as.numeric)
   )
 
 set.seed(1618)
@@ -123,19 +124,25 @@ for (i in 1:nrow(metadata)) {
   
   if (file.exists(
     
-    file = paste0("D:/AlgorithmComparisonSim/", metadata[i, 2])
+    file = paste0("D:/AlgorithmComparisonSim/", metadata$proj_name[i])
     
   )) {
     
-    cat("File: ", metadata[i, 2], "already exists in folder. Moving on... \n")
+    cat("File: ", metadata$proj_name[i], "already exists in folder. Moving on... \n")
     
   } else {
     
-    temp_object <- do.call(make_a_dataset, metadata[i, 2:6])
+    temp_object <- make_a_dataset(
+      proj_name = metadata$proj_name[i],
+      batchCells = metadata$batchCells[i],
+      group.prob = metadata$group.prob[[i]],
+      de.prob = metadata$de.prob[i],
+      nGenes = metadata$nGenes[i]
+    )
     
     fwrite(temp_object, file = paste0("D:/AlgorithmComparisonSim/", metadata[i, 2]))
     
-    cat("File: ", metadata[i, 2], "created. Moving on... \n")
+    cat("File: ", metadata$proj_name[i], "created. Moving on... \n")
     
   }
   
