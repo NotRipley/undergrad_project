@@ -87,16 +87,6 @@ parameter_matrix <- tibble(
   nGenes = rep(2000, 10)
 )
 
-parameter_matrix <- parameter_matrix |> 
-  mutate(
-    ID = as.numeric(ID),
-    proj_name = as.character(proj_name),
-    batchCells = as.numeric(batchCells),
-    de.prob = as.numeric(de.prob),
-    nGenes = as.numeric(nGenes)
-  )
-
-
 # write out this file
 if (file.exists(file = "D:/AlgorithmComparisonSim/metadata_acs")) {
   
@@ -114,6 +104,17 @@ if (file.exists(file = "D:/AlgorithmComparisonSim/metadata_acs")) {
 
 # read the file back in and set random seed for reproducibility
 metadata <- fread("D:/AlgorithmComparisonSim/metadata_acs")
+
+metadata <- metadata |> 
+  mutate(
+    ID = as.numeric(ID),
+    proj_name = as.character(proj_name),
+    batchCells = as.numeric(batchCells),
+    de.prob = as.numeric(de.prob),
+    group.prob = lapply(group.prob, as.numeric),
+    nGenes = as.numeric(nGenes)
+  )
+
 set.seed(1618)
 
 for (i in 1:nrow(metadata)) {
@@ -121,14 +122,20 @@ for (i in 1:nrow(metadata)) {
   # check if there is a file in the directory by the name we want
   
   if (file.exists(
+    
     file = paste0("D:/AlgorithmComparisonSim/", metadata[i, 2])
+    
   )) {
+    
     cat("File: ", metadata[i, 2], "already exists in folder. Moving on... \n")
+    
   } else {
     
     temp_object <- do.call(make_a_dataset, metadata[i, 2:6])
     
     fwrite(temp_object, file = paste0("D:/AlgorithmComparisonSim/", metadata[i, 2]))
+    
+    cat("File: ", metadata[i, 2], "created. Moving on... \n")
     
   }
   
