@@ -71,17 +71,30 @@ make_a_dataset <- function(batchCells, group.prob, de.prob, nGenes, proj_name) {
 
 At present my biggest concern with the below data is that the SCTransform is hanging on to only the 100 most variable genes. I have not found this answer immediate from documentation so I need to dig a bit more for that, or maybe am missing something. 
 
+the columns i want to have in param matrix are:
+ID, projname, batchcells, group prob, de prob, nGenes (proj name will be the same as filename)
+
 ```{r Simulated Data}
 
-sim1 <- make_a_dataset(
-  batchCells = 300,
-  group.prob = c(0.25, 0.25, 0.25, 0.25),
-  de.prob = 0.3, 
-  nGenes = 2000,
-  proj_name = "sim1"
+parameter_matrix <- tibble(
+  ID = 1:10,
+  proj_name = paste0("set", 1:10),
+  batchCells = rep(500, 10),
+  group.prob = list(
+    c(0.25, 0.25, 0.25, 0.25),
+    c(0.33, 0.33, 0.34),
+    c(0.2, 0.2, 0.2, 0.2, 0.2),
+    c(0.3, 0.3, 0.4),
+    c(0.25, 0.25, 0.25, 0.25),
+    c(0.2, 0.3, 0.5),
+    c(0.15, 0.15, 0.2, 0.25, 0.25),
+    c(0.4, 0.3, 0.3),
+    c(0.2, 0.2, 0.2, 0.2, 0.2),
+    c(0.25, 0.35, 0.4)
+  ),
+  de.prob = c(),
+  nGenes = c()
 )
-
-sct_sim1 <- SCTransform(sim1) 
 
 
 
@@ -94,6 +107,8 @@ sct_sim1 <- SCTransform(sim1)
 
 run_kmeans <- function(sct_seurat_object, k = NULL) {
   
+  start_time <- Sys.time()
+  
   sct_scaled <- LayerData(
     object = sct_seurat_object, 
     assay = "SCT", 
@@ -102,22 +117,34 @@ run_kmeans <- function(sct_seurat_object, k = NULL) {
   if (is.numeric(k) == TRUE) {
     centers = k
   } else {
+    
+    time_1 <- Sys.time()
+    
     clusGapcall <- clusGap(
       x = sct_scaled,
       FUNcluster = kmeans,
       K.max = 10,
-      B = 5
+      B = 20
     )
     
     centers <- maxSE(clusGapcall$Tab[, "gap"],
                      clusGapcall$Tab[, "SE.sim"],
                      method = "firstSEmax")
+    
+    time_2 <- Sys.time()
+    cat("took ", time_2 - time_1, " to estimate k \n")
+    
   }
+  
+  time_3 <- Sys.time()
   
   # run kmeans:
   kmobject <- kmeans(sct_scaled,
                      centers = centers,
                      nstart = 25)
+  
+  end_time <- Sys.time()
+  cat("took ", end_time - time_3, " to cluster and ", end_time - start_time, "in total \n")
   
   return(kmobject)
   
@@ -202,6 +229,8 @@ lv_sil <- silhouette(lv_clusters, dist_mat)
 lv_avg_sil <- mean(lv_sil[, 3])
 
 # then need to run louvain on this
+
+
 
 
 ```
