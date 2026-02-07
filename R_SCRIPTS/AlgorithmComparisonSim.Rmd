@@ -18,7 +18,7 @@ library(cluster)
 
 # takes parameters specified and returns a number of seurat objects to those specifications, just in a list. they'll be slightly different since theres randomness and we make sure the random seed is different each time. 
 
-make_a_dataset <- function(batchCells, group.prob, de.prob, nGenes, proj_name) {
+make_a_dataset <- function(proj_name, batchCells, group.prob, de.prob, nGenes) {
   
   # batchCells - a vector giving the number of cells per batch, ie two batches with 100 cells is (100, 100)
   # group.prob - vector specifying probabilities per group, ie (0.5, 0.5) will likely give two same sized groups
@@ -30,7 +30,7 @@ make_a_dataset <- function(batchCells, group.prob, de.prob, nGenes, proj_name) {
   # a bit of input validation
   stopifnot(
     is.numeric(batchCells),
-    is.numeric(group.prob),
+    #is.numeric(group.prob),
     is.numeric(de.prob),
     is.numeric(nGenes),
     is.character(proj_name)
@@ -50,20 +50,11 @@ make_a_dataset <- function(batchCells, group.prob, de.prob, nGenes, proj_name) {
   sim <- splatSimulate(params, method = "groups")
   
   counts_matrix <- counts(sim)
-  seurat_obj <- CreateSeuratObject(counts = counts_matrix, project = proj_name)
   
-  # then we want to add the true labelling in case we want to do arandi
-  seurat_obj$true_labelling <- colData(sim)$Group
-  
-  return(seurat_obj)
+  # this is what we will write out, and then create seurat object as needed for clustering
+  return(counts_matrix)
   
 }
-
-
-
-```
-
-```{r Real Data}
 
 
 
@@ -74,7 +65,7 @@ At present my biggest concern with the below data is that the SCTransform is han
 the columns i want to have in param matrix are:
 ID, projname, batchcells, group prob, de prob, nGenes (proj name will be the same as filename)
 
-```{r Simulated Data}
+```{r Make Parameter Matrix}
 
 parameter_matrix <- tibble(
   ID = 1:10,
@@ -92,12 +83,56 @@ parameter_matrix <- tibble(
     c(0.2, 0.2, 0.2, 0.2, 0.2),
     c(0.25, 0.35, 0.4)
   ),
-  de.prob = c(),
-  nGenes = c()
+  de.prob = c(0.05, 0.1, 0.1, 0.2, 0.2, 0.2, 0.2, 0.3, 0.3, 0.5),
+  nGenes = rep(2000, 10)
 )
 
+parameter_matrix <- parameter_matrix |> 
+  mutate(
+    ID = as.numeric(ID),
+    proj_name = as.character(proj_name),
+    batchCells = as.numeric(batchCells),
+    de.prob = as.numeric(de.prob),
+    nGenes = as.numeric(nGenes)
+  )
 
 
+# write out this file
+if (file.exists(file = "D:/AlgorithmComparisonSim/metadata_acs")) {
+  
+  cat("metadata_acs file already exists")
+  
+} else {
+  
+  fwrite(parameter_matrix, file = "D:/AlgorithmComparisonSim/metadata_acs")
+  
+}
+
+```
+
+```{r Generate Datasets}
+
+# read the file back in and set random seed for reproducibility
+metadata <- fread("D:/AlgorithmComparisonSim/metadata_acs")
+set.seed(1618)
+
+for (i in 1:nrow(metadata)) {
+  
+  # check if there is a file in the directory by the name we want
+  
+  if (file.exists(
+    file = paste0("D:/AlgorithmComparisonSim/", metadata[i, 2])
+  )) {
+    cat("File: ", metadata[i, 2], "already exists in folder. Moving on... \n")
+  } else {
+    
+    temp_object <- do.call(make_a_dataset, metadata[i, 2:6])
+    
+    fwrite(temp_object, file = paste0("D:/AlgorithmComparisonSim/", metadata[i, 2]))
+    
+  }
+  
+}
 
 ```
 
