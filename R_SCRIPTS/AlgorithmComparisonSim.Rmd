@@ -327,11 +327,26 @@ run_louvain <- function(sct_seurat_object, resolution  = NULL) {
 
 
 So far we're seeing the whole thing does run, but the clusgap is returning one centre. am going to run it through all the sets to see if it's always doing this, and then try and tweak it. it will unfortunately probably take 5ish minutes per one, so we'll go with just the first five or so.
+
+Yep so they are all on one centre. So we need to check what's going wrong with our clusgap call, or maybe it's just like too many dimensions. who knows eh.
 ```{r Giving it a Go}
 
-set1 <- fread("D:/AlgorithmComparisonSim/set1")
+# set1 <- fread("D:/AlgorithmComparisonSim/set1")
+# 
+# kmobject <- run_kmeans(1, set1)
 
-kmobject <- run_kmeans(1, set1)
+t_0 <- Sys.time()
+
+for (i in 1:4) {
+  
+  temp_set <- fread(paste0("D:/AlgorithmComparisonSim/set", i))
+  
+  kmobject <- run_kmeans(i, temp_set)
+  
+}
+
+t_1 <- Sys.time()
+cat("TOTAL TIME FOR ALL 5: ", t_1 - t_0)
 
 ```
 
