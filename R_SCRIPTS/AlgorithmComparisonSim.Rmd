@@ -240,10 +240,12 @@ run_PCAkmeans <- function(set_index, counts, k = NULL) {
   # sct_seurat_object - object of class seurat with SCTransform applied
   # k - centers for KMeans. If left NULL, estimated with Gap Statistic
   
-  PCA_sct_seurat_object <- RunPCA(sctobject, npcs = 100, verbose = TRUE)
+  # TO TRY AND GET THE CLUSGAP TO ESTIMATE K BETTER, WE HAVE REDUCED THE NUMBER OF PCS. WE WILL NEED TO JUSTIFY THIS STEP. 
+  
+  PCA_sct_seurat_object <- RunPCA(sctobject, npcs = 50, verbose = TRUE)
   
   # pull PCA embeddings
-  embeddings <- Embeddings(PCA_sct_seurat_object)
+  embeddings <- Embeddings(PCA_sct_seurat_object)[, 1:20]
   
   # run kmeans
 
@@ -306,7 +308,7 @@ Yep so they are all on one centre. So we need to check what's going wrong with o
 
 set1 <- fread("D:/AlgorithmComparisonSim/set1")
 
-kmobject <- run_kmeans(1, set1)
+kmobject <- run_PCAkmeans(1, set1)
 
 # t_0 <- Sys.time()
 # 
