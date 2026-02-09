@@ -161,7 +161,7 @@ Since we chose to store the counts instead of the whole seurat object, we will w
 run_kmeans <- function(set_index, counts, k = NULL) {
   
   start_time <- Sys.time()
-  cat("Started run_kmeans function. \n")
+  cat("BEGIN run_kmeans function. \n")
   
   # firstly, we want to take our counts and then make it into a seurat object.
   sobject <- CreateSeuratObject(counts = counts, assay = "RNA", project = paste0("set", set_index))
@@ -216,9 +216,10 @@ run_kmeans <- function(set_index, counts, k = NULL) {
   time_4 <- Sys.time()
   cat("Took ", time_4 - time_3, "to finish clustering... \n")
   
-  # and now having produced our cluster assignments we write them out. For now I think I'll only need the cluster assignments, so we literally just write those out. We will do that in the chunk, and not within this function; here, we return the whole kmobject. 
+  # and now having produced our cluster assignments we write them out. For now I think I'll only need the cluster assignments, so we literally just write those out. 
+  return(kmobject$cluster)
   
-  return(kmobject)
+  cat("END run_kmeans function. \n")
   
 }
 
@@ -228,7 +229,7 @@ run_kmeans <- function(set_index, counts, k = NULL) {
 run_PCAkmeans <- function(set_index, counts, k = NULL) {
   
   start_time <- Sys.time()
-  cat("Started run_kmeans function. \n")
+  cat("BEGIN run_PCAkmeans function. \n")
   
   # firstly, we want to take our counts and then make it into a seurat object.
   sobject <- CreateSeuratObject(counts = counts, assay = "RNA", project = paste0("set", set_index))
@@ -240,12 +241,21 @@ run_PCAkmeans <- function(set_index, counts, k = NULL) {
   # sct_seurat_object - object of class seurat with SCTransform applied
   # k - centers for KMeans. If left NULL, estimated with Gap Statistic
   
-  # TO TRY AND GET THE CLUSGAP TO ESTIMATE K BETTER, WE HAVE REDUCED THE NUMBER OF PCS. WE WILL NEED TO JUSTIFY THIS STEP. 
+  sct_scaled <- LayerData(
+    object = sctobject, 
+    assay = "SCT", 
+    layer = "scale.data")
   
-  PCA_sct_seurat_object <- RunPCA(sctobject, npcs = 50, verbose = TRUE)
+  pca_call <- prcomp(X = sct_scaled, center = TRUE, scale. = TRUE)
+  var_explained <- pca_call$sdev^2 / sum(pca_call$sdev^2)
+  cumulative_var <- cumsum(var_explained)
+  
+  npcs <- which(cumulative_var >= 0.9)[1]
+  
+  PCA_sct_seurat_object <- RunPCA(sctobject, npcs = npcs, verbose = TRUE)
   
   # pull PCA embeddings
-  embeddings <- Embeddings(PCA_sct_seurat_object)[, 1:20]
+  embeddings <- Embeddings(PCA_sct_seurat_object)
   
   # run kmeans
 
@@ -278,23 +288,40 @@ run_PCAkmeans <- function(set_index, counts, k = NULL) {
                      centers = use_k,
                      nstart = 25)
   
-  return(kmobject)
+  #r returning just the cluster vector for now
+  return(kmobject$cluster)
+  
+  cat("END run_PCAkmeans function. \n")
   
 }
 
 # Takes a seurat object post-SCTransform. Runs the Louvain Algorithm native to Seurat, IF we can make sure it's not doing any extra optimisation under the hood. Otherwise, we can pull the count data, make the SNN graph and cluster ourselves.
 
-run_louvain <- function(sct_seurat_object, resolution  = NULL) {
+run_louvain <- function(set_index, counts, resolution = NULL) {
   
-  sct_seurat_object <- sct_seurat_object |> 
-    RunPCA(npcs = 100) |> 
-    FindNeighbors(dims = 1:30)
+  start_time <- Sys.time()
+  cat("BEGIN run_louvain function. \n")
+  
+  # firstly, we want to take our counts and then make it into a seurat object.
+  sobject <- CreateSeuratObject(counts = counts, assay = "RNA", project = paste0("set", set_index))
+  
+  # then, we want to run SCTransform on the data. To be clear, this does normalisation, scaling, and finding variable features. It creates a whole new assay, which we make sure to reference in further steps. 
+  
+  # AGAIN, NEED TO JUSTIFY NPCS!!
+  
+  sctobject <- SCTransform(sobject)
+  
+  sctobject <- sctobject |> 
+    RunPCA(npcs = 50) |> 
+    FindNeighbors(dims = 1:50)
     
+  sctobject <- FindClusters(sctobject, algorithm = 1)
   
+  clustering <- sctobject$seurat_clusters
   
-  lv_sct <- FindClusters(sct_seurat_object, algorithm = 1)
+  return(clustering)
   
-  return(lv_sct)
+  cat("END run_louvain function. \n")
   
 }
 
@@ -304,12 +331,14 @@ run_louvain <- function(sct_seurat_object, resolution  = NULL) {
 So far we're seeing the whole thing does run, but the clusgap is returning one centre. am going to run it through all the sets to see if it's always doing this, and then try and tweak it. it will unfortunately probably take 5ish minutes per one, so we'll go with just the first five or so.
 
 Yep so they are all on one centre. So we need to check what's going wrong with our clusgap call, or maybe it's just like too many dimensions. who knows eh.
+
+Attempting with the true k passed gives us that kmeans is terrible on the whole data and on 20 PCS it's pretty mid. Now we go to louvain and leiden, which do not suffer from this need to estimate k, and will probably show that these outperform KMeans and KMeans + PCA. To note is that for Louvain and Leiden, they are performed on a PCA space by default. I.e., there is a silent ( + PCA) on each one. 
 ```{r Giving it a Go}
 
 set1 <- fread("D:/AlgorithmComparisonSim/set1")
 
-kmobject <- run_PCAkmeans(1, set1)
-
+cluster_vector <- run_PCAkmeans(1, set1, k = 4)
+ 
 # t_0 <- Sys.time()
 # 
 # for (i in 1:4) {
@@ -322,40 +351,6 @@ kmobject <- run_PCAkmeans(1, set1)
 # 
 # t_1 <- Sys.time()
 # cat("TOTAL TIME FOR ALL 5: ", t_1 - t_0)
-
-```
-
-
-
-
-
-Not sure about this bit?
-```{r Simulate}
-
-kmeans_sct_sim1 <- run_kmeans(sct_sim1)
-
-pca_kmeans_sct_sim1 <- run_PCAkmeans(sct_sim1)
-
-lv_sct_sim1 <- run_louvain(sct_sim1)
-
-
-# for the louvain clustering
-
-p_sct_sim1 <- sct_sim1 |> 
-    RunPCA(npcs = 100) |> 
-    FindNeighbors(dims = 1:30)
-
-embeddings <- Embeddings(p_sct_sim1, reduction = "pca")[, 1:30]
-
-lv_clusters <- as.numeric(Idents(sct_sim1))
-dist_mat <- dist(embeddings)
-lv_sil <- silhouette(lv_clusters, dist_mat)
-lv_avg_sil <- mean(lv_sil[, 3])
-
-# then need to run louvain on this
-
-
-
 
 ```
 
