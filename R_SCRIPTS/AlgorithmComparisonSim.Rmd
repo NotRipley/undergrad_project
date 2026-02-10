@@ -226,6 +226,9 @@ run_kmeans <- function(set_index, counts, k = NULL) {
 }
 
 
+
+
+
 # Takes a seurat object post-SCTransform. Estimates a workable number of PCs, runs PCA, clusters on that number of PCs.
 
 run_PCAkmeans <- function(set_index, counts, k = NULL) {
@@ -300,6 +303,9 @@ run_PCAkmeans <- function(set_index, counts, k = NULL) {
   
 }
 
+
+
+
 # Takes a seurat object post-SCTransform. Runs the Louvain Algorithm native to Seurat, IF we can make sure it's not doing any extra optimisation under the hood. Otherwise, we can pull the count data, make the SNN graph and cluster ourselves.
 
 run_louvain <- function(set_index, counts, resolution = NULL) {
@@ -312,14 +318,23 @@ run_louvain <- function(set_index, counts, resolution = NULL) {
   
   # then, we want to run SCTransform on the data. To be clear, this does normalisation, scaling, and finding variable features. It creates a whole new assay, which we make sure to reference in further steps. 
   
-  # AGAIN, NEED TO JUSTIFY NPCS!!
-  
   sctobject <- SCTransform(sobject)
   
+  sct_scaled <- LayerData(object = sctobject, assay = "SCT", layer = "scale.data")
+  
+  pca_call <- prcomp(sct_scaled, center = TRUE, scale. = TRUE)
+  var_explained <- pca_call$sdev^2 / sum(pca_call$sdev^2)
+  cumulative_var <- cumsum(var_explained)
+  
+  npcs <- which(cumulative_var >= 0.8)[1]
+
+  cat("Continuing Louvain on ", npcs, " PCs... \n")
+  
   sctobject <- sctobject |> 
-    RunPCA(npcs = 50) |> 
-    FindNeighbors(dims = 1:50)
+    RunPCA(npcs = npcs) |> 
+    FindNeighbors(dims = 1:npcs)
     
+  # select Louvain with Algorithm = 1
   sctobject <- FindClusters(sctobject, algorithm = 1)
   
   clustering <- sctobject$seurat_clusters
@@ -343,7 +358,7 @@ Attempting with the true k passed gives us that kmeans is terrible on the whole 
 
 set10 <- fread("D:/AlgorithmComparisonSim/set10")
 
-cluster_vector <- run_kmeans(1, set10)
+cluster_vector <- run_louvain(1, set10)
 
  
 # t_0 <- Sys.time()
