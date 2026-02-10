@@ -356,23 +356,24 @@ Attempting with the true k passed gives us that kmeans is terrible on the whole 
 
 ```{r Giving it a Go}
 
-set10 <- fread("D:/AlgorithmComparisonSim/set10")
+t_0 <- Sys.time()
 
-cluster_vector <- run_louvain(1, set10)
+for (i in 1:10) {
+  
+  temp_set <- fread(paste0("D:/AlgorithmComparisonSim/set", sprintf("%02d", i)))
 
- 
-# t_0 <- Sys.time()
-# 
-# for (i in 1:4) {
-#   
-#   temp_set <- fread(paste0("D:/AlgorithmComparisonSim/set", i))
-#   
-#   kmobject <- run_kmeans(i, temp_set)
-#   
-# }
-# 
-# t_1 <- Sys.time()
-# cat("TOTAL TIME FOR ALL 5: ", t_1 - t_0)
+  temp_cluster <- run_louvain(i, temp_set)
+  
+  if (file.exists(
+    
+    paste0()
+    
+  ))
+
+}
+
+t_1 <- Sys.time()
+cat("TOTAL TIME FOR ALL 5: ", t_1 - t_0)
 
 ```
 
