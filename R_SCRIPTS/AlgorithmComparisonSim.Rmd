@@ -10,6 +10,7 @@ library(scater)
 library(splatter)
 library(Seurat)
 library(cluster)
+library(data.table)
 
 ```
 
@@ -69,7 +70,7 @@ ID, projname, batchcells, group prob, de prob, nGenes (proj name will be the sam
 
 parameter_matrix <- tibble(
   ID = 1:10,
-  proj_name = paste0("set", 1:10),
+  proj_name = paste0("set", sprintf("%02d", 1:10)),
   batchCells = rep(500, 10),
   group.prob = list(
     c(0.25, 0.25, 0.25, 0.25),
@@ -188,12 +189,13 @@ run_kmeans <- function(set_index, counts, k = NULL) {
       x = sct_scaled,
       FUNcluster = kmeans,
       K.max = 10,
-      B = 20
+      B = 20,
+      nstart = 25
     )
     
     use_k <- maxSE(clusGapcall$Tab[, "gap"],
                      clusGapcall$Tab[, "SE.sim"],
-                     method = "Tibs2001SEmax")
+                     method = "globalSEmax")
     
     time_2 <- Sys.time()
     cat("took ", time_2 - time_1, " to estimate k \n")
@@ -246,11 +248,13 @@ run_PCAkmeans <- function(set_index, counts, k = NULL) {
     assay = "SCT", 
     layer = "scale.data")
   
-  pca_call <- prcomp(X = sct_scaled, center = TRUE, scale. = TRUE)
+  pca_call <- prcomp(x = sct_scaled, center = TRUE, scale. = TRUE)
   var_explained <- pca_call$sdev^2 / sum(pca_call$sdev^2)
   cumulative_var <- cumsum(var_explained)
   
-  npcs <- which(cumulative_var >= 0.9)[1]
+  npcs <- which(cumulative_var >= 0.8)[1]
+  
+  cat("Continuing on ", npcs, " PCs. \n")
   
   PCA_sct_seurat_object <- RunPCA(sctobject, npcs = npcs, verbose = TRUE)
   
@@ -267,12 +271,13 @@ run_PCAkmeans <- function(set_index, counts, k = NULL) {
       x = embeddings,
       FUNcluster = kmeans,
       K.max = 10,
-      B = 20
+      B = 20, 
+      nstart = 25
     )
     
     use_k <- maxSE(clusGapcall$tab[, "gap"],
                    clusGapcall$tab[, "SE.sim"],
-                   method = "Tibs2001SEmax")
+                   method = "globalSEmax")
     
     time_2 <- Sys.time()
     cat("Took ", time_2 - time_1, " to estimate k.")
@@ -333,11 +338,13 @@ So far we're seeing the whole thing does run, but the clusgap is returning one c
 Yep so they are all on one centre. So we need to check what's going wrong with our clusgap call, or maybe it's just like too many dimensions. who knows eh.
 
 Attempting with the true k passed gives us that kmeans is terrible on the whole data and on 20 PCS it's pretty mid. Now we go to louvain and leiden, which do not suffer from this need to estimate k, and will probably show that these outperform KMeans and KMeans + PCA. To note is that for Louvain and Leiden, they are performed on a PCA space by default. I.e., there is a silent ( + PCA) on each one. 
+
 ```{r Giving it a Go}
 
-set1 <- fread("D:/AlgorithmComparisonSim/set1")
+set10 <- fread("D:/AlgorithmComparisonSim/set10")
 
-cluster_vector <- run_PCAkmeans(1, set1, k = 4)
+cluster_vector <- run_kmeans(1, set10)
+
  
 # t_0 <- Sys.time()
 # 
