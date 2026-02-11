@@ -164,45 +164,34 @@ run_kmeans <- function(set_index, counts, k = NULL) {
   start_time <- Sys.time()
   cat("BEGIN run_kmeans function. \n")
   
-  # firstly, we want to take our counts and then make it into a seurat object.
-  sobject <- CreateSeuratObject(counts = counts, assay = "RNA", project = paste0("set", set_index))
+  # I think that we want to scale the data in order for us to see the clusters
+  scaled_counts <- scale(counts)
   
-  # then, we want to run SCTransform on the data. To be clear, this does normalisation, scaling, and finding variable features. It creates a whole new assay, which we make sure to reference in further steps. 
-  
-  sctobject <- SCTransform(sobject)
-  
-  # and now we look at only the sct scaled  layer from the SCT assay. This is a counts matrix that has been SCTransformed, and it's the scaled layer instead of the raw counts. 
-  
-  sct_scaled <- LayerData(
-    object = sctobject, 
-    assay = "SCT", 
-    layer = "scale.data")
-  
-  cat("Object made, transformed... \n")
-  
-  # and at this stage, we check whether we were passed the true clusters, and if not we estimate it using clusgap. This is a pretty time-intensive step in practice, but we keep the bootstrapping high unless it makes it completely unfeasible. 
+  # Estimate k with clusGap
   if (is.null(k)) {
     
+    cat("Estimating K... \n")
     time_1 <- Sys.time()
     
     clusGapcall <- clusGap(
-      x = sct_scaled,
+      x = scaled_counts,
       FUNcluster = kmeans,
       K.max = 10,
-      B = 20,
-      nstart = 25
+      B = 5, #REDUCED TEMPORARILY, RESET TO 20
+      nstart = 5 #REDUCED TEMPORARILY< RESET TO 25
     )
     
     use_k <- maxSE(clusGapcall$Tab[, "gap"],
                      clusGapcall$Tab[, "SE.sim"],
-                     method = "globalSEmax")
+                     method = "firstSEmax")
     
     time_2 <- Sys.time()
-    cat("took ", time_2 - time_1, " to estimate k \n")
+    cat("took ", time_2 - time_1, " to estimate K as ", use_k, " \n")
     
   } else {
     
     use_k <- k
+    cat("K passed as", use_k)
     
   }
   
@@ -211,7 +200,7 @@ run_kmeans <- function(set_index, counts, k = NULL) {
   time_3 <- Sys.time()
   cat("Beginning KMeans clustering on ", use_k, "centres... \n")
   
-  kmobject <- kmeans(sct_scaled,
+  kmobject <- kmeans(scaled_counts,
                      centers = use_k,
                      nstart = 25)
   
@@ -280,7 +269,7 @@ run_PCAkmeans <- function(set_index, counts, k = NULL) {
     
     use_k <- maxSE(clusGapcall$tab[, "gap"],
                    clusGapcall$tab[, "SE.sim"],
-                   method = "globalSEmax")
+                   method = "firstSEmax")
     
     time_2 <- Sys.time()
     cat("Took ", time_2 - time_1, " to estimate k.")
@@ -354,7 +343,20 @@ Yep so they are all on one centre. So we need to check what's going wrong with o
 
 Attempting with the true k passed gives us that kmeans is terrible on the whole data and on 20 PCS it's pretty mid. Now we go to louvain and leiden, which do not suffer from this need to estimate k, and will probably show that these outperform KMeans and KMeans + PCA. To note is that for Louvain and Leiden, they are performed on a PCA space by default. I.e., there is a silent ( + PCA) on each one. 
 
-```{r Giving it a Go}
+```{r KMeans Cluster and Writeout}
+
+t_0 <- Sys.time()
+
+set01 <- fread("D:/AlgorithmComparisonSim/set01")
+
+kmeans01 <- run_kmeans(set_index = 1, counts = set01)
+
+t_1 <- Sys.time()
+cat("Took ", t_1 - t_0, "to do that. \n")
+
+```
+
+```{r Louvain Cluster and Writeout}
 
 t_0 <- Sys.time()
 
