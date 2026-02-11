@@ -143,6 +143,8 @@ for (i in 1:nrow(metadata)) {
       nGenes = metadata$nGenes[i]
     )
     
+    cat("This df has", ncol(temp_object), "cols and ", nrow(temp_object), "rows. \n")
+    
     fwrite(temp_object, file = paste0("D:/AlgorithmComparisonSim/", metadata[i, 2]))
     
     cat("File: ", metadata$proj_name[i], "created. Moving on... \n")
@@ -163,6 +165,9 @@ run_kmeans <- function(set_index, counts, k = NULL) {
   
   start_time <- Sys.time()
   cat("BEGIN run_kmeans function. \n")
+  
+  # We want to transpose the matrix so it's cells x genes
+  counts <- t(counts)
   
   # I think that we want to scale the data in order for us to see the clusters
   scaled_counts <- scale(counts)
@@ -224,10 +229,13 @@ run_PCAkmeans <- function(set_index, counts, k = NULL) {
   
   start_time <- Sys.time()
   cat("BEGIN run_PCAkmeans function. \n")
+  
+  # We want to transpose the matrix so it's cells x genes
+  counts <- t(counts)
 
   scaled_counts <- scale(counts)
   
-  pca_call <- prcomp(x = scaled_counts, center = TRUE, scale. = TRUE)
+  pca_call <- prcomp(x = scaled_counts)
   var_explained <- pca_call$sdev^2 / sum(pca_call$sdev^2)
   cumulative_var <- cumsum(var_explained)
   
@@ -235,7 +243,7 @@ run_PCAkmeans <- function(set_index, counts, k = NULL) {
   
   cat("Continuing on ", npcs, " PCs. \n")
   
-  #need to now pull the first 'npcs' pcs from scaled_counts
+  embeddings <- prcomp(scaled_counts)$x[, 1:npcs]
   
   # run kmeans
 
@@ -261,13 +269,19 @@ run_PCAkmeans <- function(set_index, counts, k = NULL) {
   } else {
     
     use_k <- k
+    cat("K passed as ", use_k, " \n")
     
   }
   
-  # run kmeans:
+  time_3 <- Sys.time()
+  cat("Beginning KMeans clustering on ", use_k, "centres... \n")
+  
   kmobject <- kmeans(embeddings,
                      centers = use_k,
                      nstart = 25)
+  
+  time_4 <- Sys.time()
+  cat("Took ", time_4 - time_3, "to finish clustering... \n")
   
   #r returning just the cluster vector for now
   return(kmobject$cluster)
@@ -331,9 +345,9 @@ Attempting with the true k passed gives us that kmeans is terrible on the whole 
 
 t_0 <- Sys.time()
 
-set01 <- fread("D:/AlgorithmComparisonSim/set01")
+set10 <- fread("D:/AlgorithmComparisonSim/set10")
 
-kmeans01 <- run_kmeans(set_index = 1, counts = set01)
+kmeans01 <- run_PCAkmeans(set_index = 10, counts = set10)
 
 t_1 <- Sys.time()
 cat("Took ", t_1 - t_0, "to do that. \n")
