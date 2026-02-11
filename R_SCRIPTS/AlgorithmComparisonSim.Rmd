@@ -224,23 +224,10 @@ run_PCAkmeans <- function(set_index, counts, k = NULL) {
   
   start_time <- Sys.time()
   cat("BEGIN run_PCAkmeans function. \n")
+
+  scaled_counts <- scale(counts)
   
-  # firstly, we want to take our counts and then make it into a seurat object.
-  sobject <- CreateSeuratObject(counts = counts, assay = "RNA", project = paste0("set", set_index))
-  
-  # then, we want to run SCTransform on the data. To be clear, this does normalisation, scaling, and finding variable features. It creates a whole new assay, which we make sure to reference in further steps. 
-  
-  sctobject <- SCTransform(sobject)
-  
-  # sct_seurat_object - object of class seurat with SCTransform applied
-  # k - centers for KMeans. If left NULL, estimated with Gap Statistic
-  
-  sct_scaled <- LayerData(
-    object = sctobject, 
-    assay = "SCT", 
-    layer = "scale.data")
-  
-  pca_call <- prcomp(x = sct_scaled, center = TRUE, scale. = TRUE)
+  pca_call <- prcomp(x = scaled_counts, center = TRUE, scale. = TRUE)
   var_explained <- pca_call$sdev^2 / sum(pca_call$sdev^2)
   cumulative_var <- cumsum(var_explained)
   
@@ -248,10 +235,7 @@ run_PCAkmeans <- function(set_index, counts, k = NULL) {
   
   cat("Continuing on ", npcs, " PCs. \n")
   
-  PCA_sct_seurat_object <- RunPCA(sctobject, npcs = npcs, verbose = TRUE)
-  
-  # pull PCA embeddings
-  embeddings <- Embeddings(PCA_sct_seurat_object)
+  #need to now pull the first 'npcs' pcs from scaled_counts
   
   # run kmeans
 
