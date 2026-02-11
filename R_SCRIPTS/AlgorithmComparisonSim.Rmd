@@ -169,6 +169,9 @@ run_kmeans <- function(set_index, counts, k = NULL) {
   # We want to transpose the matrix so it's cells x genes
   counts <- t(counts)
   
+  # we remove dimensions that dont vary at all, as they won't help with clustering
+  counts <- counts[, apply(counts, 2, var) > 0]
+  
   # I think that we want to scale the data in order for us to see the clusters
   scaled_counts <- scale(counts)
   
@@ -232,6 +235,8 @@ run_PCAkmeans <- function(set_index, counts, k = NULL) {
   
   # We want to transpose the matrix so it's cells x genes
   counts <- t(counts)
+  
+  counts <- counts[, apply(counts, 2, var) > 0]
 
   scaled_counts <- scale(counts)
   
@@ -347,7 +352,7 @@ t_0 <- Sys.time()
 
 set10 <- fread("D:/AlgorithmComparisonSim/set10")
 
-kmeans01 <- run_PCAkmeans(set_index = 10, counts = set10)
+kmeans01 <- run_kmeans(set_index = 10, counts = set10)
 
 t_1 <- Sys.time()
 cat("Took ", t_1 - t_0, "to do that. \n")
