@@ -173,7 +173,7 @@ run_kmeans <- function(set_index, counts, k = NULL) {
   counts <- counts[, apply(counts, 2, var) > 0]
   
   # I think that we want to scale the data in order for us to see the clusters
-  scaled_counts <- scale(counts)
+  counts <- scale(counts)
   
   # Estimate k with clusGap
   if (is.null(k)) {
@@ -182,7 +182,7 @@ run_kmeans <- function(set_index, counts, k = NULL) {
     time_1 <- Sys.time()
     
     clusGapcall <- clusGap(
-      x = scaled_counts,
+      x = counts,
       FUNcluster = kmeans,
       K.max = 10,
       B = 5, #REDUCED TEMPORARILY, RESET TO 20
@@ -208,7 +208,7 @@ run_kmeans <- function(set_index, counts, k = NULL) {
   time_3 <- Sys.time()
   cat("Beginning KMeans clustering on ", use_k, "centres... \n")
   
-  kmobject <- kmeans(scaled_counts,
+  kmobject <- kmeans(counts,
                      centers = use_k,
                      nstart = 25)
   
@@ -238,9 +238,9 @@ run_PCAkmeans <- function(set_index, counts, k = NULL) {
   
   counts <- counts[, apply(counts, 2, var) > 0]
 
-  scaled_counts <- scale(counts)
+  counts <- scale(counts)
   
-  pca_call <- prcomp(x = scaled_counts)
+  pca_call <- prcomp(x = counts)
   var_explained <- pca_call$sdev^2 / sum(pca_call$sdev^2)
   cumulative_var <- cumsum(var_explained)
   
@@ -248,7 +248,7 @@ run_PCAkmeans <- function(set_index, counts, k = NULL) {
   
   cat("Continuing on ", npcs, " PCs. \n")
   
-  embeddings <- prcomp(scaled_counts)$x[, 1:npcs]
+  embeddings <- prcomp(counts)$x[, 1:npcs]
   
   # run kmeans
 
@@ -352,7 +352,7 @@ t_0 <- Sys.time()
 
 set10 <- fread("D:/AlgorithmComparisonSim/set10")
 
-kmeans01 <- run_kmeans(set_index = 10, counts = set10)
+kmeans01 <- run_PCAkmeans(set_index = 10, counts = set10)
 
 t_1 <- Sys.time()
 cat("Took ", t_1 - t_0, "to do that. \n")
