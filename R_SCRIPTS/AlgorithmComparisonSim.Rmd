@@ -271,16 +271,16 @@ find_npcs <- function(counts) {
 
 
 estimate_k <- function(embeddings) {
-  
+    
   clusGapcall <- clusGap(embeddings,
-                         FUNcluster = kmeans,
-                         nstart = 25,
-                         K.max = 10,
-                         B = 50)
-  
+                       FUNcluster = kmeans,
+                       nstart = 25,
+                       K.max = 10,
+                       B = 100)
+
   k_val <- maxSE(clusGapcall$Tab[, "gap"], clusGapcall$Tab[, "SE.sim"], 
-               method = "firstSEmax")
-  
+             method = "globalmax")
+
   cat("clusGap gives ", k_val, " as our K estimate. \n")
   
   return(k_val)
@@ -403,9 +403,17 @@ Attempting with the true k passed gives us that kmeans is terrible on the whole 
 
 t_0 <- Sys.time()
 
-set05 <- fread("D:/AlgorithmComparisonSim/set05")
-
-kmeans01 <- run_PCAkmeans(set_index = 5, counts = set05)
+for (i in 1:10) {
+  
+  temp_set <- fread(paste0(
+    "D:/AlgorithmComparisonSim/set", sprintf("%02d", i)
+  ))
+  
+  temp_cluster <- run_PCAkmeans(i, temp_set)
+  
+  cat("FINISHED clustering the ", i, "th one! \n")
+    
+}
 
 t_1 <- Sys.time()
 cat("Took ", t_1 - t_0, "to do that. \n")
