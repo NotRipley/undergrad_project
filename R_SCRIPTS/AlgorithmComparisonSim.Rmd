@@ -157,6 +157,8 @@ Since we chose to store the counts instead of the whole seurat object, we will w
 
 First order of business - increase amount of bootstrapping, drastically decrease amount of PCs, neglect pure kmeans (without PCA) for now, for timesaving reasons. 
 
+Ok we need to manage to do the clusGap bit. 
+
 ```{r More Functions}
 
 # rewrite our K Means function. Need to fully understand what's going on. 
