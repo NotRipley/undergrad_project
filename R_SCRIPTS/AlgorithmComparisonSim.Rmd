@@ -61,10 +61,7 @@ make_a_dataset <- function(proj_name, batchCells, group.prob, de.prob, nGenes) {
 
 ```
 
-At present my biggest concern with the below data is that the SCTransform is hanging on to only the 100 most variable genes. I have not found this answer immediate from documentation so I need to dig a bit more for that, or maybe am missing something. 
 
-the columns i want to have in param matrix are:
-ID, projname, batchcells, group prob, de prob, nGenes (proj name will be the same as filename)
 
 ```{r Make Parameter Matrix}
 
@@ -157,6 +154,9 @@ for (i in 1:nrow(metadata)) {
 
 Since we chose to store the counts instead of the whole seurat object, we will write a quick helper function that brings us to the seurat object. Because of the scaling etc, at this stage we make the decision to cluster all of our methods on the seurat's scaled data layer as far as possible. This will involve some further layers (graphs) for the Louvain and Leiden algorithms but that's fine. 
 
+
+First order of business - increase amount of bootstrapping, drastically decrease amount of PCs, neglect pure kmeans (without PCA) for now, for timesaving reasons. 
+
 ```{r More Functions}
 
 # rewrite our K Means function. Need to fully understand what's going on. 
@@ -173,7 +173,7 @@ run_kmeans <- function(set_index, counts, k = NULL) {
   counts <- counts[, apply(counts, 2, var) > 0]
   
   # I think that we want to scale the data in order for us to see the clusters
-  counts <- scale(counts)
+  # counts <- scale(counts)
   
   # Estimate k with clusGap
   if (is.null(k)) {
@@ -222,8 +222,19 @@ run_kmeans <- function(set_index, counts, k = NULL) {
   
 }
 
+####################
 
 
+# Takes a matrix of counts data (transposes it) and then finds a good number of PCs by which to split the data for cluster evaluation. Returns a list of this number and a plot of the variance explained by each PC, so that we can easily compare whether it's doing the right thing. 
+find_npcs <- function(counts) {
+  
+  prcobject <- prcomp
+  
+}
+
+
+
+####################
 
 
 # Takes a seurat object post-SCTransform. Estimates a workable number of PCs, runs PCA, clusters on that number of PCs.
@@ -238,7 +249,7 @@ run_PCAkmeans <- function(set_index, counts, k = NULL) {
   
   counts <- counts[, apply(counts, 2, var) > 0]
 
-  counts <- scale(counts)
+  #counts <- scale(counts)
   
   pca_call <- prcomp(x = counts)
   var_explained <- pca_call$sdev^2 / sum(pca_call$sdev^2)
@@ -296,6 +307,7 @@ run_PCAkmeans <- function(set_index, counts, k = NULL) {
 }
 
 
+#################
 
 
 # Takes a seurat object post-SCTransform. Runs the Louvain Algorithm native to Seurat, IF we can make sure it's not doing any extra optimisation under the hood. Otherwise, we can pull the count data, make the SNN graph and cluster ourselves.
