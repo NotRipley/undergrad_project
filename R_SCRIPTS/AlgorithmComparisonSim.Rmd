@@ -228,7 +228,40 @@ run_kmeans <- function(set_index, counts, k = NULL) {
 # Takes a matrix of counts data (transposes it) and then finds a good number of PCs by which to split the data for cluster evaluation. Returns a list of this number and a plot of the variance explained by each PC, so that we can easily compare whether it's doing the right thing. 
 find_npcs <- function(counts) {
   
-  prcobject <- prcomp
+  counts <- t(counts)
+  prcobject <- prcomp(counts)
+  variances <- prcobject$sdev^2
+  n_pcs <- length(variances)
+  
+  x <- 1:n_pcs
+  y <- variances
+  
+  x1 <- x[1]
+  y1 <- y[1]
+  x2 <- x[n_pcs]
+  y2 <- y[n_pcs]
+  
+  a <- y2 - y1
+  b <- -(x2 - x1)
+  c <- (x2 - x1) * y1 - (y2 - y1) * x1
+  
+  distances <- abs(a * x + b * y + c) / sqrt(a^2 + b^2)
+  
+  # The elbow is at the point with maximum distance
+  elbow_idx <- which.max(distances)
+  
+  elbowplot <- ggplot(mapping = aes(x = x, y = y)) +
+  geom_point() +
+  geom_line() +  # Optional: connect the points
+  geom_abline(intercept = y[1], 
+              slope = (y[2] - y[1]) / n_pcs,
+              linetype = "dashed", 
+              color = "gray50") +
+  theme_minimal()
+  
+  return(list(elbow_idx, elbowplot))
+  
+  cat("END find_npcs function. \n")
   
 }
 
@@ -249,13 +282,7 @@ run_PCAkmeans <- function(set_index, counts, k = NULL) {
   
   counts <- counts[, apply(counts, 2, var) > 0]
 
-  #counts <- scale(counts)
-  
-  pca_call <- prcomp(x = counts)
-  var_explained <- pca_call$sdev^2 / sum(pca_call$sdev^2)
-  cumulative_var <- cumsum(var_explained)
-  
-  npcs <- which(cumulative_var >= 0.8)[1]
+  npcs <- find_npcs(counts)[[1]]
   
   cat("Continuing on ", npcs, " PCs. \n")
   
@@ -271,13 +298,13 @@ run_PCAkmeans <- function(set_index, counts, k = NULL) {
       x = embeddings,
       FUNcluster = kmeans,
       K.max = 10,
-      B = 20, 
+      B = 200, 
       nstart = 25
     )
     
     use_k <- maxSE(clusGapcall$tab[, "gap"],
                    clusGapcall$tab[, "SE.sim"],
-                   method = "firstSEmax")
+                   method = "Tibs2001SEmax")
     
     time_2 <- Sys.time()
     cat("Took ", time_2 - time_1, " to estimate k.")
@@ -362,9 +389,9 @@ Attempting with the true k passed gives us that kmeans is terrible on the whole 
 
 t_0 <- Sys.time()
 
-set10 <- fread("D:/AlgorithmComparisonSim/set10")
+set05 <- fread("D:/AlgorithmComparisonSim/set05")
 
-kmeans01 <- run_PCAkmeans(set_index = 10, counts = set10)
+kmeans01 <- run_PCAkmeans(set_index = 5, counts = set05)
 
 t_1 <- Sys.time()
 cat("Took ", t_1 - t_0, "to do that. \n")
