@@ -267,6 +267,26 @@ find_npcs <- function(counts) {
   
 }
 
+####################
+
+
+estimate_k <- function(embeddings) {
+  
+  clusGapcall <- clusGap(embeddings,
+                         FUNcluster = kmeans,
+                         nstart = 25,
+                         K.max = 10,
+                         B = 50)
+  
+  k_val <- maxSE(clusGapcall$Tab[, "gap"], clusGapcall$Tab[, "SE.sim"], 
+               method = "firstSEmax")
+  
+  cat("clusGap gives ", k_val, " as our K estimate. \n")
+  
+  return(k_val)
+  
+}
+
 
 
 ####################
@@ -291,25 +311,17 @@ run_PCAkmeans <- function(set_index, counts, k = NULL) {
   embeddings <- prcomp(counts)$x[, 1:npcs]
   
   # run kmeans
+  
+  # i think we want to pull this bit out as a helper function st we can focus on the problem itself.
 
   if (is.null(k)) {
     
     time_1 <- Sys.time()
     
-    clusGapcall <- clusGap(
-      x = embeddings,
-      FUNcluster = kmeans,
-      K.max = 10,
-      B = 200, 
-      nstart = 25
-    )
-    
-    use_k <- maxSE(clusGapcall$tab[, "gap"],
-                   clusGapcall$tab[, "SE.sim"],
-                   method = "Tibs2001SEmax")
+    use_k <- estimate_k(embeddings = embeddings)
     
     time_2 <- Sys.time()
-    cat("Took ", time_2 - time_1, " to estimate k.")
+    cat("Took ", time_2 - time_1, " to estimate k. \n")
     
   } else {
     
