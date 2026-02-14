@@ -353,7 +353,16 @@ run_PCAkmeans <- function(set_index, counts, k = NULL) {
 
 # Takes a seurat object post-SCTransform. Runs the Louvain Algorithm native to Seurat, IF we can make sure it's not doing any extra optimisation under the hood. Otherwise, we can pull the count data, make the SNN graph and cluster ourselves.
 
-run_louvain <- function(set_index, counts, resolution = NULL) {
+run_graph_based <- function(set_index, counts, mode) {
+  # set_index - the index of the dataset to be used
+  # counts - the counts dataset to be used
+  # mode - 1 for Louvain, 2 for Leiden
+  
+  if (mode == 1) {
+    algorithm <- mode
+  } else {
+    algorithm <- 4
+  }
   
   start_time <- Sys.time()
   cat("BEGIN run_louvain function. \n")
@@ -367,10 +376,12 @@ run_louvain <- function(set_index, counts, resolution = NULL) {
   
   sct_scaled <- LayerData(object = sctobject, assay = "SCT", layer = "scale.data")
   
-  pca_call <- prcomp(sct_scaled, center = TRUE, scale. = TRUE)
+  # npcs <- find_npcs(sct_scaled)[[1]]
+  
+  pca_call <- prcomp(sct_scaled, center = TRUE, scale. = FALSE)
   var_explained <- pca_call$sdev^2 / sum(pca_call$sdev^2)
   cumulative_var <- cumsum(var_explained)
-  
+
   npcs <- which(cumulative_var >= 0.8)[1]
 
   cat("Continuing Louvain on ", npcs, " PCs... \n")
@@ -393,11 +404,39 @@ run_louvain <- function(set_index, counts, resolution = NULL) {
 ```
 
 
-So far we're seeing the whole thing does run, but the clusgap is returning one centre. am going to run it through all the sets to see if it's always doing this, and then try and tweak it. it will unfortunately probably take 5ish minutes per one, so we'll go with just the first five or so.
 
-Yep so they are all on one centre. So we need to check what's going wrong with our clusgap call, or maybe it's just like too many dimensions. who knows eh.
+```{r Louvain Cluster and Writeout}
 
-Attempting with the true k passed gives us that kmeans is terrible on the whole data and on 20 PCS it's pretty mid. Now we go to louvain and leiden, which do not suffer from this need to estimate k, and will probably show that these outperform KMeans and KMeans + PCA. To note is that for Louvain and Leiden, they are performed on a PCA space by default. I.e., there is a silent ( + PCA) on each one. 
+t_0 <- Sys.time()
+set.seed(1618)
+cat("BEGINNING LOUVAIN FULL RUN. \n")
+
+for (i in 1:10) {
+  
+  temp_set <- fread(paste0("D:/AlgorithmComparisonSim/set", sprintf("%02d", i)))
+
+  temp_cluster <- run_graph_based(i, temp_set, mode = 1)
+  
+  if (file.exists(
+    
+    paste0("D:/AlgorithmComparisonSim/LV", sprintf("%02d", i))
+    
+  )) { 
+    cat("File ", paste0("D:/AlgorithmComparisonSim/LV", sprintf("%02d", i)), "already exists... \n") 
+  } else {
+      
+    fwrite(temp_cluster, paste0("D:/AlgorithmComparisonSim/LV", sprintf("%02d", i)))
+    
+    }
+
+}
+
+t_1 <- Sys.time()
+cat("TOTAL TIME FOR ALL 10: ", t_1 - t_0)
+
+```
+
+
 
 ```{r KMeans Cluster and Writeout}
 
@@ -420,28 +459,7 @@ cat("Took ", t_1 - t_0, "to do that. \n")
 
 ```
 
-```{r Louvain Cluster and Writeout}
 
-t_0 <- Sys.time()
-
-for (i in 1:10) {
-  
-  temp_set <- fread(paste0("D:/AlgorithmComparisonSim/set", sprintf("%02d", i)))
-
-  temp_cluster <- run_louvain(i, temp_set)
-  
-  if (file.exists(
-    
-    paste0()
-    
-  ))
-
-}
-
-t_1 <- Sys.time()
-cat("TOTAL TIME FOR ALL 5: ", t_1 - t_0)
-
-```
 
 
 
