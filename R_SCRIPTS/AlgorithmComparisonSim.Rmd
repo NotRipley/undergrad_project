@@ -358,14 +358,19 @@ run_graph_based <- function(set_index, counts, mode) {
   # counts - the counts dataset to be used
   # mode - 1 for Louvain, 2 for Leiden
   
-  if (mode == 1) {
-    algorithm <- mode
-  } else {
+  if (mode == "Louvain") {
+    # choose Louvain
+    algorithm <- 1
+  } else if (mode == "Leiden") {
+    # choose Leiden
     algorithm <- 4
+  } else {
+    algorithm <- 1
+    cat("Mode not specified correctly - using Louvain. \n")
   }
   
   start_time <- Sys.time()
-  cat("BEGIN run_louvain function. \n")
+  cat("BEGIN run_graph_based function. \n")
   
   # firstly, we want to take our counts and then make it into a seurat object.
   sobject <- CreateSeuratObject(counts = counts, assay = "RNA", project = paste0("set", set_index))
@@ -391,13 +396,15 @@ run_graph_based <- function(set_index, counts, mode) {
     FindNeighbors(dims = 1:npcs)
     
   # select Louvain with Algorithm = 1
-  sctobject <- FindClusters(sctobject, algorithm = 1)
+  sctobject <- FindClusters(sctobject, algorithm = algorithm)
   
-  clustering <- sctobject$seurat_clusters
+  clustering <- data.frame(cell = names(sctobject$seurat_clusters), cluster = as.character(sctobject$seurat_clusters))
+  
+  cat("END run_louvain function. \n")
   
   return(clustering)
   
-  cat("END run_louvain function. \n")
+  
   
 }
 
@@ -415,7 +422,7 @@ for (i in 1:10) {
   
   temp_set <- fread(paste0("D:/AlgorithmComparisonSim/set", sprintf("%02d", i)))
 
-  temp_cluster <- run_graph_based(i, temp_set, mode = 1)
+  temp_cluster <- run_graph_based(i, temp_set, mode = "Louvain")
   
   if (file.exists(
     
@@ -427,6 +434,8 @@ for (i in 1:10) {
       
     fwrite(temp_cluster, paste0("D:/AlgorithmComparisonSim/LV", sprintf("%02d", i)))
     
+    cat("Written out file from set", i, " ... \n")
+    
     }
 
 }
@@ -436,7 +445,38 @@ cat("TOTAL TIME FOR ALL 10: ", t_1 - t_0)
 
 ```
 
+```{r Leiden Cluster and Writeout}
 
+t_0 <- Sys.time()
+set.seed(1618)
+cat("BEGINNING LEIDEN FULL RUN. \n")
+
+for (i in 1:10) {
+  
+  temp_set <- fread(paste0("D:/AlgorithmComparisonSim/set", sprintf("%02d", i)))
+
+  temp_cluster <- run_graph_based(i, temp_set, mode = "Leiden")
+  
+  if (file.exists(
+    
+    paste0("D:/AlgorithmComparisonSim/LD", sprintf("%02d", i))
+    
+  )) { 
+    cat("File ", paste0("D:/AlgorithmComparisonSim/LD", sprintf("%02d", i)), "already exists... \n") 
+  } else {
+      
+    fwrite(temp_cluster, paste0("D:/AlgorithmComparisonSim/LD", sprintf("%02d", i)))
+    
+    cat("Written out file from set", i, " ... \n")
+    
+    }
+
+}
+
+t_1 <- Sys.time()
+cat("TOTAL TIME FOR ALL 10: ", t_1 - t_0)
+
+```
 
 ```{r KMeans Cluster and Writeout}
 
