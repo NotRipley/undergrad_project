@@ -532,7 +532,7 @@ for (i in 1:10) {
   ))
   
   #trying WITHOUT scaling first
-  temp_cluster <- run_PCAkmeans(i, temp_set, just_use_fifty = TRUE, scale = TRUE)
+  temp_cluster <- run_PCAkmeans(i, temp_set, just_use_fifty = FALSE, scale = FALSE)
   
   if (file.exists(
     
@@ -595,8 +595,11 @@ cluster_scores <- function(clustering, original_counts, true_labels) {
 
 temp_cluster <- fread("D:/AlgorithmComparisonSim/LV05")
 temp_set <- fread("D:AlgorithmComparisonSim/Set05")
+temp_true <- fread("D:AlgorithmComparisonSim/Set05true_labels")
 
-
+temp_score <- cluster_scores(clustering = temp_cluster,
+                             original_counts = temp_set,
+                             true_labels = temp_true)
 
 ```
 
