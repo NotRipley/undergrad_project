@@ -554,7 +554,7 @@ Creating clustering evaluation function. Choose Silhouette, Davies-Bouldin, Cali
 
 ```{r Cluster Evaluation Function}
 
-cluster_scores <- function(clustering, original_counts, true_labels = NULL) {
+cluster_scores <- function(clustering, original_counts, true_labels) {
   
   # silhouette score
   whole_silhouette <- silhouette(clustering, dist = dist(original_counts))
@@ -566,7 +566,8 @@ cluster_scores <- function(clustering, original_counts, true_labels = NULL) {
   #dbouldin
   score_dbouldin <- index.DB(original_counts, clustering)
   
-  #arandi if true data is passed
+  #arandi
+  score_ari <- mclust::adjustedRandIndex(true_labels, clustering)
   
   
   
