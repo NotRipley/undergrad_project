@@ -54,8 +54,17 @@ make_a_dataset <- function(proj_name, batchCells, group.prob, de.prob, nGenes) {
   
   counts_matrix <- counts(sim)
   
-  # this is what we will write out, and then create seurat object as needed for clustering
-  return(counts_matrix)
+  # extract true labelling for later
+  true_labels <- data.table(
+    cell_id = colnames(counts_matrix),
+    true_group = colData(sim)$Group
+  )
+  
+  # this is what we will write out, and then create seurat object as needed for clustering from the counts, and will use true labels for the arandi later.
+  return(list(
+    counts = counts_matrix,
+    labels = true_labels
+  ))
   
 }
 
@@ -124,16 +133,10 @@ for (i in 1:nrow(metadata)) {
   
   # check if there is a file in the directory by the name we want
   
-  if (file.exists(
+  if (!file.exists(file = paste0("D:/AlgorithmComparisonSim/", metadata$proj_name[i])) | 
+      !file.exists(file = paste0("D:/AlgorithmComparisonSim/", metadata$proj_name[i], "true_labels"))) {
     
-    file = paste0("D:/AlgorithmComparisonSim/", metadata$proj_name[i])
-    
-  )) {
-    
-    cat("File: ", metadata$proj_name[i], "already exists in folder. Moving on... \n")
-    
-  } else {
-    
+    # make the dataset if at least one of them is missing
     temp_object <- make_a_dataset(
       proj_name = metadata$proj_name[i],
       batchCells = metadata$batchCells[i],
@@ -142,11 +145,30 @@ for (i in 1:nrow(metadata)) {
       nGenes = metadata$nGenes[i]
     )
     
-    cat("This df has", ncol(temp_object), "cols and ", nrow(temp_object), "rows. \n")
+    if (file.exists(file = paste0("D:/AlgorithmComparisonSim/", metadata$proj_name[i]))) {
+      cat("File for", i, "already exists, moving on... \n")
+    } else {
+      
+      #write out counts
+      fwrite(temp_object$counts, file = paste0("D:/AlgorithmComparisonSim/", metadata[i, 2]))
+      
+      cat("File: ", metadata$proj_name[i], "created. Moving on... \n")
+      
+    }
     
-    fwrite(temp_object, file = paste0("D:/AlgorithmComparisonSim/", metadata[i, 2]))
     
-    cat("File: ", metadata$proj_name[i], "created. Moving on... \n")
+    
+    if (file.exists(file = paste0("D:/AlgorithmComparisonSim/", metadata$proj_name[i], "true_labels"))) {
+      cat("File: ", metadata$proj_name[i], "true_labels already exists in folder. Moving on... \n")
+      
+      } else {
+        
+      
+        fwrite(temp_object$labels, file = paste0("D:/AlgorithmComparisonSim/", metadata$proj_name[i], "true_labels"))  
+        
+        cat("True labels for", i, "created... \n")
+        
+    }
     
   }
   
