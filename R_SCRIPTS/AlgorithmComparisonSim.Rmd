@@ -517,6 +517,8 @@ cat("TOTAL TIME FOR ALL 10: ", t_1 - t_0)
 ```{r KMeans Cluster and Writeout}
 
 t_0 <- Sys.time()
+set.seed(1618)
+cat("BEGINNING KMEANS FULL RUN. \n")
 
 for (i in 1:10) {
   
@@ -546,7 +548,7 @@ for (i in 1:10) {
 }
 
 t_1 <- Sys.time()
-cat("Took ", t_1 - t_0, "to do that. \n")
+cat("Took ", t_1 - t_0, "to do all 10. \n")
 
 ```
 
@@ -569,7 +571,16 @@ cluster_scores <- function(clustering, original_counts, true_labels) {
   #arandi
   score_ari <- mclust::adjustedRandIndex(true_labels, clustering)
   
+  scores <- data.frame(
+    
+    silhouette = score_silhouette,
+    calinski_harabasz = score_calinhara,
+    davies_bouldin = score_dbouldin,
+    adjusted_rand_index = score_ari
+    
+  )
   
+  return(scores)
   
 }
 
