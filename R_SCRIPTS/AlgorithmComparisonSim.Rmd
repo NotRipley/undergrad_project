@@ -593,15 +593,69 @@ cluster_scores <- function(clustering, original_counts, true_labels) {
 
 ```{r LV Scores Writeout}
 
-temp_cluster <- fread("D:/AlgorithmComparisonSim/LV05")[["cluster"]]
-temp_set <- t(fread("D:AlgorithmComparisonSim/Set05"))
-temp_true <- fread("D:AlgorithmComparisonSim/Set05true_labels")[["true_group"]]
+# temp_cluster <- fread("D:/AlgorithmComparisonSim/PK05")[["cluster"]]
+# temp_set <- t(fread("D:AlgorithmComparisonSim/Set05"))
+# temp_true <- fread("D:AlgorithmComparisonSim/Set05true_labels")[["true_group"]]
+# 
+# temp_score <- cluster_scores(clustering = temp_cluster,
+#                              original_counts = temp_set,
+#                              true_labels = temp_true)
+# 
+# temp_score
 
-temp_score <- cluster_scores(clustering = temp_cluster,
+t_0 <- Sys.time()
+cat("BEGINNING LV SCORES WRITEOUT... \n")
+
+for (i in 1:10) {
+  
+  temp_cluster <- fread(paste0("D:/AlgorithmComparisonSim/LV", sprintf("%02d", i)))[["cluster"]]
+  temp_set <- t(fread(paste0("D:/AlgorithmComparisonSim/set", sprintf("%02d", i))))
+  temp_true <- fread(paste0("D:/AlgorithmComparisonSim/set", sprintf("%02d", i), "true_labels"))[["true_group"]]
+  
+  temp_score <- cluster_scores(clustering = temp_cluster,
                              original_counts = temp_set,
                              true_labels = temp_true)
+  
+  if (file.exists(paste0("D:/AlgorithmComparisonSim/Scores/LV", sprintf("%02d", i), "scores"))) {
+    cat("File for ", i, "already exists... \n")
+  } else {
+    fwrite(temp_score, paste0("D:/AlgorithmComparisonSim/Scores/LV", sprintf("%02d", i), "scores"))
+    cat("Written out the one for ", i, "... \n")
+  }
+  
+}
 
-temp_score
+t_1 <- Sys.time()
+cat("TOOK", t_1 - t_0, "TO DO ALL 10... \n")
+
+```
+
+```{r LD Scores Writeout}
+
+t_0 <- Sys.time()
+cat("BEGINNING LD SCORES WRITEOUT... \n")
+
+for (i in 1:10) {
+  
+  temp_cluster <- fread(paste0("D:/AlgorithmComparisonSim/LD", sprintf("%02d", i)))[["cluster"]]
+  temp_set <- t(fread(paste0("D:/AlgorithmComparisonSim/set", sprintf("%02d", i))))
+  temp_true <- fread(paste0("D:/AlgorithmComparisonSim/set", sprintf("%02d", i), "true_labels"))[["true_group"]]
+  
+  temp_score <- cluster_scores(clustering = temp_cluster,
+                             original_counts = temp_set,
+                             true_labels = temp_true)
+  
+  if (file.exists(paste0("D:/AlgorithmComparisonSim/Scores/LD", sprintf("%02d", i), "scores"))) {
+    cat("File for ", i, "already exists... \n")
+  } else {
+    fwrite(temp_score, paste0("D:/AlgorithmComparisonSim/Scores/LD", sprintf("%02d", i), "scores"))
+    cat("Written out the one for ", i, "... \n")
+  }
+  
+}
+
+t_1 <- Sys.time()
+cat("TOOK", t_1 - t_0, "TO DO ALL 10... \n")
 
 ```
 
