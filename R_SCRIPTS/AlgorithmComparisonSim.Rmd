@@ -11,6 +11,8 @@ library(splatter)
 library(Seurat)
 library(cluster)
 library(data.table)
+library(fpc)
+library(clusterSim)
 
 ```
 
@@ -270,11 +272,19 @@ find_npcs <- function(counts) {
 ####################
 
 
-estimate_k <- function(embeddings) {
+estimate_k <- function(embeddings, scale) {
+  
+  if (!is.logical(scale) | scale == FALSE) {
+    cat("Not scaling embeddings... \n")
+  } else if (scale == TRUE) {
+    embeddings <- scale(embeddings)
+    cat("Scaling embeddings... \n")
+  }
     
   clusGapcall <- clusGap(embeddings,
                        FUNcluster = kmeans,
                        nstart = 25,
+                       iter.max = 20,
                        K.max = 10,
                        B = 100)
 
@@ -294,7 +304,7 @@ estimate_k <- function(embeddings) {
 
 # Takes a seurat object post-SCTransform. Estimates a workable number of PCs, runs PCA, clusters on that number of PCs.
 
-run_PCAkmeans <- function(set_index, counts, k = NULL) {
+run_PCAkmeans <- function(set_index, counts, k = NULL, scale = FALSE) {
   
   start_time <- Sys.time()
   cat("BEGIN run_PCAkmeans function. \n")
@@ -309,16 +319,12 @@ run_PCAkmeans <- function(set_index, counts, k = NULL) {
   cat("Continuing on ", npcs, " PCs. \n")
   
   embeddings <- prcomp(counts)$x[, 1:npcs]
-  
-  # run kmeans
-  
-  # i think we want to pull this bit out as a helper function st we can focus on the problem itself.
 
   if (is.null(k)) {
     
     time_1 <- Sys.time()
     
-    use_k <- estimate_k(embeddings = embeddings)
+    use_k <- estimate_k(embeddings = embeddings, scale)
     
     time_2 <- Sys.time()
     cat("Took ", time_2 - time_1, " to estimate k. \n")
@@ -335,13 +341,21 @@ run_PCAkmeans <- function(set_index, counts, k = NULL) {
   
   kmobject <- kmeans(embeddings,
                      centers = use_k,
+                     iter.max = 20,
                      nstart = 25)
   
   time_4 <- Sys.time()
   cat("Took ", time_4 - time_3, "to finish clustering... \n")
   
   #r returning just the cluster vector for now
-  return(kmobject$cluster)
+  
+  clustering <- data.frame(
+    cell = names(kmobject$cluster),
+    cluster = kmobject$cluster,
+    row.names = NULL
+  )
+  
+  return(clustering)
   
   cat("END run_PCAkmeans function. \n")
   
@@ -488,7 +502,22 @@ for (i in 1:10) {
     "D:/AlgorithmComparisonSim/set", sprintf("%02d", i)
   ))
   
-  temp_cluster <- run_PCAkmeans(i, temp_set)
+  #trying WITHOUT scaling first
+  temp_cluster <- run_PCAkmeans(i, temp_set, scale = FALSE)
+  
+  if (file.exists(
+    
+    paste0("D:/AlgorithmComparisonSim/PK", sprintf("%02d", i))
+    
+  )) { 
+    cat("File ", paste0("D:/AlgorithmComparisonSim/PK", sprintf("%02d", i)), "already exists... \n") 
+  } else {
+      
+    fwrite(temp_cluster, paste0("D:/AlgorithmComparisonSim/PK", sprintf("%02d", i)))
+    
+    cat("Written out file from set", i, " ... \n")
+    
+    }
   
   cat("FINISHED clustering the ", i, "th one! \n")
     
@@ -499,7 +528,29 @@ cat("Took ", t_1 - t_0, "to do that. \n")
 
 ```
 
+Creating clustering evaluation function. Choose Silhouette, Davies-Bouldin, Calinski-Harabasz, Adj Rand Index. 
 
+```{r Cluster Evaluation Function}
+
+cluster_scores <- function(clustering, original_counts, true_labels = NULL) {
+  
+  # silhouette score
+  whole_silhouette <- silhouette(clustering, dist = dist(original_counts))
+  score_silhouette <- mean(whole_silhouette[, 3])
+  
+  #calinhara 
+  score_calinhara <- calinhara(original_counts, clustering)
+  
+  #dbouldin
+  score_dbouldin <- index.DB(original_counts, clustering)
+  
+  #arandi if true data is passed
+  
+  
+  
+}
+
+```
 
 
 
