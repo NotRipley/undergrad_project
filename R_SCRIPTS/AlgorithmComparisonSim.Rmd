@@ -312,6 +312,12 @@ estimate_k <- function(embeddings, scale) {
 
   k_val <- maxSE(clusGapcall$Tab[, "gap"], clusGapcall$Tab[, "SE.sim"], 
              method = "globalmax")
+  
+  # Specify 2 as a floor for clustering such that we can extract a silhouette score from it. This is hopefully wrapped up in our assumption that there are clusters at all, so it makes sense to specify there are more than one. 
+  if (k_val < 2) {
+    k_val <- 2
+    cat("Had to use the 2 cluster floor btw... \n")
+  }
 
   cat("clusGap gives ", k_val, " as our K estimate. \n")
   
@@ -561,7 +567,7 @@ Creating clustering evaluation function. Choose Silhouette, Davies-Bouldin, Cali
 
 ```{r Cluster Evaluation Function}
 
-cluster_scores <- function(clustering, original_counts, true_labels) {
+cluster_scores <- function(clustering, original_counts, true_labels, algorithm) {
   
   # silhouette score
   whole_silhouette <- silhouette(clustering, dist = dist(original_counts))
@@ -578,6 +584,7 @@ cluster_scores <- function(clustering, original_counts, true_labels) {
   
   scores <- tibble(
     
+    algorithm = algorithm,
     avg_silhouette = score_silhouette,
     calinski_harabasz = score_calinhara,
     davies_bouldin = score_dbouldin,
@@ -591,20 +598,63 @@ cluster_scores <- function(clustering, original_counts, true_labels) {
 
 ```
 
-```{r LV Scores Writeout}
 
-# temp_cluster <- fread("D:/AlgorithmComparisonSim/PK05")[["cluster"]]
-# temp_set <- t(fread("D:AlgorithmComparisonSim/Set05"))
-# temp_true <- fread("D:AlgorithmComparisonSim/Set05true_labels")[["true_group"]]
-# 
-# temp_score <- cluster_scores(clustering = temp_cluster,
-#                              original_counts = temp_set,
-#                              true_labels = temp_true)
-# 
-# temp_score
+
+```{r PK Scores Writeout}
+
+t_0 <- Sys.time()
+cat("BEGINNING PK SCORES WRITEOUT... \n")
+
+PK_allscores <- tibble(
+  algorithm = character(),
+  avg_silhouette = numeric(),
+  calinski_harabasz = numeric(),
+  davies_bouldin = numeric(),
+  adjusted_rand_index = numeric()
+)
+
+for (i in 1:10) {
+  
+  temp_cluster <- fread(paste0("D:/AlgorithmComparisonSim/PK", sprintf("%02d", i)))[["cluster"]]
+  temp_set <- t(fread(paste0("D:/AlgorithmComparisonSim/set", sprintf("%02d", i))))
+  temp_true <- fread(paste0("D:/AlgorithmComparisonSim/set", sprintf("%02d", i), "true_labels"))[["true_group"]]
+  
+  temp_score <- cluster_scores(algorithm = "PCAKMeans",
+    clustering = temp_cluster,
+    original_counts = temp_set,
+    true_labels = temp_true)
+  
+  PK_allscores <- add_row(PK_allscores, temp_score)
+  cat("added", i, "one to PK_allscores... \n")
+  
+}
+
+t_1 <- Sys.time()
+cat("TOOK", t_1 - t_0, "TO DO ALL 10... \n")
+
+if (file.exists("D:/AlgorithmComparisonSim/Scores/PK_allscores")) {
+  cat("Scores for PK already exist... \n")
+} else {
+  fwrite(PK_allscores, "D:/AlgorithmComparisonSim/Scores/PK_allscores")
+  cat("Written out PK scores... \n")
+}
+
+```
+
+
+
+```{r LV Scores Writeout}
 
 t_0 <- Sys.time()
 cat("BEGINNING LV SCORES WRITEOUT... \n")
+
+LV_allscores <- tibble(
+  algorithm = character(),
+  avg_silhouette = numeric(),
+  calinski_harabasz = numeric(),
+  davies_bouldin = numeric(),
+  adjusted_rand_index = numeric()
+)
 
 for (i in 1:10) {
   
@@ -612,21 +662,34 @@ for (i in 1:10) {
   temp_set <- t(fread(paste0("D:/AlgorithmComparisonSim/set", sprintf("%02d", i))))
   temp_true <- fread(paste0("D:/AlgorithmComparisonSim/set", sprintf("%02d", i), "true_labels"))[["true_group"]]
   
-  temp_score <- cluster_scores(clustering = temp_cluster,
-                             original_counts = temp_set,
-                             true_labels = temp_true)
+  temp_score <- cluster_scores(algorithm = "Louvain",
+    clustering = temp_cluster,
+    original_counts = temp_set,
+    true_labels = temp_true)
   
-  if (file.exists(paste0("D:/AlgorithmComparisonSim/Scores/LV", sprintf("%02d", i), "scores"))) {
-    cat("File for ", i, "already exists... \n")
-  } else {
-    fwrite(temp_score, paste0("D:/AlgorithmComparisonSim/Scores/LV", sprintf("%02d", i), "scores"))
-    cat("Written out the one for ", i, "... \n")
-  }
+  LV_allscores <- add_row(LV_allscores, temp_score)
+  cat("added", i, "one to LV_allscores... \n")
+  
+  # if (file.exists(paste0("D:/AlgorithmComparisonSim/Scores/LV", sprintf("%02d", i), "scores"))) {
+  #   cat("File for ", i, "already exists... \n")
+  # } else {
+  #   fwrite(temp_score, paste0("D:/AlgorithmComparisonSim/Scores/LV", sprintf("%02d", i), "scores"))
+  #   cat("Written out the one for ", i, "... \n")
+  # }
   
 }
 
 t_1 <- Sys.time()
 cat("TOOK", t_1 - t_0, "TO DO ALL 10... \n")
+
+if (file.exists("D:/AlgorithmComparisonSim/Scores/LV_allscores")) {
+  cat("Scores for LV already exist... \n")
+} else {
+  fwrite(LV_allscores, "D:/AlgorithmComparisonSim/Scores/LV_allscores")
+  cat("Written out LV scores... \n")
+}
+
+
 
 ```
 
@@ -635,28 +698,86 @@ cat("TOOK", t_1 - t_0, "TO DO ALL 10... \n")
 t_0 <- Sys.time()
 cat("BEGINNING LD SCORES WRITEOUT... \n")
 
+LD_allscores <- tibble(
+  algorithm = character(),
+  avg_silhouette = numeric(),
+  calinski_harabasz = numeric(),
+  davies_bouldin = numeric(),
+  adjusted_rand_index = numeric()
+)
+
 for (i in 1:10) {
   
   temp_cluster <- fread(paste0("D:/AlgorithmComparisonSim/LD", sprintf("%02d", i)))[["cluster"]]
   temp_set <- t(fread(paste0("D:/AlgorithmComparisonSim/set", sprintf("%02d", i))))
   temp_true <- fread(paste0("D:/AlgorithmComparisonSim/set", sprintf("%02d", i), "true_labels"))[["true_group"]]
   
-  temp_score <- cluster_scores(clustering = temp_cluster,
-                             original_counts = temp_set,
-                             true_labels = temp_true)
+  temp_score <- cluster_scores(algorithm = "Leiden",
+    clustering = temp_cluster,
+    original_counts = temp_set,
+    true_labels = temp_true)
   
-  if (file.exists(paste0("D:/AlgorithmComparisonSim/Scores/LD", sprintf("%02d", i), "scores"))) {
-    cat("File for ", i, "already exists... \n")
-  } else {
-    fwrite(temp_score, paste0("D:/AlgorithmComparisonSim/Scores/LD", sprintf("%02d", i), "scores"))
-    cat("Written out the one for ", i, "... \n")
-  }
+  LD_allscores <- add_row(LD_allscores, temp_score)
+  cat("added", i, "one to LD_allscores... \n")
+  
+  # if (file.exists(paste0("D:/AlgorithmComparisonSim/Scores/LD", sprintf("%02d", i), "scores"))) {
+  #   cat("File for ", i, "already exists... \n")
+  # } else {
+  #   fwrite(temp_score, paste0("D:/AlgorithmComparisonSim/Scores/LD", sprintf("%02d", i), "scores"))
+  #   cat("Written out the one for ", i, "... \n")
+  # }
   
 }
 
 t_1 <- Sys.time()
 cat("TOOK", t_1 - t_0, "TO DO ALL 10... \n")
 
+if (file.exists("D:/AlgorithmComparisonSim/Scores/LD_allscores")) {
+  cat("Scores for LD already exist... \n")
+} else {
+  fwrite(LD_allscores, "D:/AlgorithmComparisonSim/Scores/LD_allscores")
+  cat("Written out LD scores... \n")
+}
+
 ```
+
+
+
+```{r Comparison Plot}
+
+LV_allscores <- fread("D:/AlgorithmComparisonSim/Scores/LV_allscores")
+LD_allscores <- fread("D:/AlgorithmComparisonSim/Scores/LD_allscores")
+PK_allscores <- fread("D:/AlgorithmComparisonSim/Scores/PK_allscores")
+
+
+combined_scores <- bind_rows(LV_allscores, LD_allscores, PK_allscores)
+
+
+# Reshape data from wide to long format
+combined_scores_long <- combined_scores %>%
+  pivot_longer(
+    cols = c(avg_silhouette, calinski_harabasz, davies_bouldin, adjusted_rand_index),
+    names_to = "metric",
+    values_to = "value"
+  )
+
+# Create faceted violin plots
+ggplot(combined_scores_long, aes(x = algorithm, y = value, fill = algorithm)) +
+  geom_violin(trim = FALSE) +
+  geom_jitter(width = 0.1, alpha = 0.5, size = 2) +  # Add points to show actual data
+  facet_wrap(~ metric, scales = "free_y", ncol = 2) +  # Free y-axis scales
+  theme_bw() +
+  labs(
+    title = "Clustering Performance Metrics by Algorithm",
+    x = "Algorithm",
+    y = "Score"
+  ) +
+  theme(
+    strip.text = element_text(size = 11, face = "bold"),
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+
+```
+
 
 
