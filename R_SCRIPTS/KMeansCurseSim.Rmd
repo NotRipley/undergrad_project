@@ -36,7 +36,6 @@ simple_data <- function(m, n, N, k, overlap) {
   } else {
     p_var <- rep(0.2, k)
   }
-    
   
   # initialise entire result matrix
   rowtotal <- m
@@ -88,80 +87,41 @@ simple_data <- function(m, n, N, k, overlap) {
   
 }
 
-# uses simple_data to slice, cluster and score a passed dataset.
-slice_cluster_score <- function(data, v, true_k = NULL) {
+# uses simple_data to slice, cluster and format a passed dataset. The output is a frame of clusterings that should change based on the dimension, and ideally get worse based on dimension. We are going up to dimension 10 000 here and praying that is enough to show the curse of dimensionality. 
+slice_cluster_dataset <- function(data, v, true_k = NULL) {
   # data - dataset to be sliced n scored
   # v - vector of dimension numbers to take arandi score at
   # true_k - true number of clusters. if left unpassed, gap statistic will be used to estimate
   
-  #get true labels
-  true_labels <- data$Tag
+  # initialise output frame
+  frame_out <- tibble(
+    Cell_ID = rownames(data),
+    True_Labels = data$Tag
+  )
   
   #drop the tag col 
-  data_no_tag <- select(data, -Tag)
+  data_no_tag <- data[, colnames(data) != "Tag"]
   
-  # initialise scores vector
-  scores <- numeric(length(v))
-  
-  # slice the dataset, estimate k with gap statistic, then add the arandi to scores vector
+  # slice the dataset, use true k, then save out the clustering
   for (i in seq_along(v)) {
     
     # slice:
     current_slice <- data_no_tag[, 1:v[i], drop = FALSE] # changed to v[i]
-    cat(i, "done slicing \n")
-    
-    # cluster:
-    
-    # estimate k:
-    # clusGapcall <- clusGap(
-    #   x = current_slice,
-    #   FUNcluster = kmeans,
-    #   K.max = 10,
-    #   B = 5
-    # )
-    
-    # k_estimated <- maxSE(clusGapcall$Tab[, "gap"],
-    #                      clusGapcall$Tab[, "SE.sim"], 
-    #                      method = "firstSEmax")
-    
-    # run kmeans:
-    
-    if (is.null(true_k)) {
-      # if k is null, we estimate it here
-      clusGapcall <- clusGap(
-        x = current_slice,
-        FUNcluster = kmeans,
-        K.max = 10,
-        B = 5 # maybe needs increased, this is comically low but for speed initially 5
-      )
-      
-      use_k <- maxSE(clusGapcall$Tab[, "gap"],
-                     clusGapcall$Tab[, "SE.sim"],
-                     method = "firstSEmax")
-      
-    } else {
-      use_k <- true_k
-    }
+    cat(v[i], "dimensions done slicing... \n")
     
     kmobject <- kmeans(current_slice, 
-                       centers = use_k,
+                       centers = true_k,
+                       iter.max = 20,
                        nstart = 25)
     
-    #cat(i, "done clustering \n")
+    frame_out[[paste0("Clust", v[i])]] <- kmobject$cluster
     
-    scores[i] <- mclust::adjustedRandIndex(true_labels, kmobject$cluster)
+    cat("Dimension", v[i], "done clustering \n")
     
-    #cat("Dimension: ", v[i], "gives arandi score: ", round(scores[i], 4), " \n")
     
   }
   
-  # format data frame for output
-  result <- data.frame(
-    dimension = v,
-    score = scores
-  )
-  
-  return(result)
+  return(frame_out)
   
 }
 
@@ -208,29 +168,43 @@ for (i in 1:length(generation_parameters)) {
   }
 }
 
+if (file.exists("D:/KMeansCurseSimTestSet/Metadata_kmcs")) {
+  cat("Metadata_kmcs already exists... \n")
+} else {
+  fwrite(metadata, file = "D:/KMeansCurseSimTestSet/Metadata_kmcs")
+  cat("Written out metadata_kmcs")
+}
+
 ```
 
 we are kinda seeing that it takes ~20s to make each data set. so let's keep a running estimate of how this works. but yeah now we want to write these out to the appropriate folder along with the metadata file. 
 
 ```{r Generation Loop Itself Estimating K}
 
-log_sequence <- unique(round(10^seq(2, 4, length.out = 5)))
+metadata <- fread("D:/KMeansCurseSimTestSet/Metadata_kmcs")
+set.seed(1618)
 
 for (i in 1:10) {
   
-  start_time <- Sys.time()
+  if (file.exists(paste0("D:/KMeansCurseSimTestSet/", metadata[i, "name"][[1]]))) {
+    cat("File for ", i, "already exists... \n")
+  } else {
+    
+    cat("Making a file in place of the", i, "th one... \n")
+    start_time <- Sys.time()
   
-  temp_set <- do.call(simple_data, metadata[i, 3:7])
-  cat("made some data, ", i, " \n")
-  
-  end_time <- Sys.time()
-  runtime <- end_time - start_time
-  
-  cat("it took ", runtime, " to make that data \n")
-  
-  fwrite(temp_set, file = paste0("D:/KMeansCurseSimTestSet/", metadata[i, "name"][[1]], ".csv"))
-  
-  cat("written out the ", i, "th file \n")
+    #only make the data if it doesn't already exist
+    temp_set <- do.call(simple_data, metadata[i, 3:7])
+    cat("made some data, ", i, " \n")
+    
+    end_time <- Sys.time()
+    runtime <- end_time - start_time
+    
+    cat("it took ", runtime, " to make that data \n")
+    
+    fwrite(temp_set, file = paste0("D:/KMeansCurseSimTestSet/", metadata[i, "name"][[1]], ".csv"))
+    cat("written out the ", i, "th file \n")
+  }
   
   end_time <- Sys.time()
   runtime <- end_time - start_time
@@ -238,6 +212,7 @@ for (i in 1:10) {
   cat("it took", runtime, "for that whole loop ")
   
 }
+
 
 ```
 
