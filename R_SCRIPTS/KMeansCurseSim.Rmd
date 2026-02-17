@@ -148,15 +148,15 @@ metadata <- tibble(
 
 generation_parameters <- list(
   
-  list(1, "set1", 1200, 10, 10^5 - 10, 3, TRUE),
-  list(2, "set2", 1200, 10, 10^5 - 10, 3, TRUE),
-  list(3, "set3", 1200, 10, 10^5 - 10, 3, FALSE),
-  list(4, "set4", 1200, 10, 10^5 - 10, 4, TRUE),
-  list(5, "set5", 1200, 10, 10^5 - 10, 4, TRUE),
-  list(6, "set6", 1200, 10, 10^5 - 10, 4, FALSE),
-  list(7, "set7", 1200, 10, 10^5 - 10, 4, FALSE),
-  list(8, "set8", 1200, 10, 10^5 - 10, 5, TRUE),
-  list(9, "set9", 1200, 10, 10^5 - 10, 5, TRUE),
+  list(1, "set01", 1200, 10, 10^5 - 10, 3, TRUE),
+  list(2, "set02", 1200, 10, 10^5 - 10, 3, TRUE),
+  list(3, "set03", 1200, 10, 10^5 - 10, 3, FALSE),
+  list(4, "set04", 1200, 10, 10^5 - 10, 4, TRUE),
+  list(5, "set05", 1200, 10, 10^5 - 10, 4, TRUE),
+  list(6, "set06", 1200, 10, 10^5 - 10, 4, FALSE),
+  list(7, "set07", 1200, 10, 10^5 - 10, 4, FALSE),
+  list(8, "set08", 1200, 10, 10^5 - 10, 5, TRUE),
+  list(9, "set09", 1200, 10, 10^5 - 10, 5, TRUE),
   list(10, "set10", 1200, 10, 10^5 - 10, 5, FALSE)
   
 )
@@ -168,10 +168,10 @@ for (i in 1:length(generation_parameters)) {
   }
 }
 
-if (file.exists("D:/KMeansCurseSimTestSet/Metadata_kmcs")) {
+if (file.exists("D:/KMeansCurseSimTestSet/metadata_kmcs")) {
   cat("Metadata_kmcs already exists... \n")
 } else {
-  fwrite(metadata, file = "D:/KMeansCurseSimTestSet/Metadata_kmcs")
+  fwrite(metadata, file = "D:/KMeansCurseSimTestSet/metadata_kmcs")
   cat("Written out metadata_kmcs")
 }
 
@@ -186,12 +186,13 @@ set.seed(1618)
 
 for (i in 1:10) {
   
+  start_time <- Sys.time()
+  
   if (file.exists(paste0("D:/KMeansCurseSimTestSet/", metadata[i, "name"][[1]]))) {
     cat("File for ", i, "already exists... \n")
   } else {
     
     cat("Making a file in place of the", i, "th one... \n")
-    start_time <- Sys.time()
   
     #only make the data if it doesn't already exist
     temp_set <- do.call(simple_data, metadata[i, 3:7])
@@ -202,14 +203,14 @@ for (i in 1:10) {
     
     cat("it took ", runtime, " to make that data \n")
     
-    fwrite(temp_set, file = paste0("D:/KMeansCurseSimTestSet/", metadata[i, "name"][[1]], ".csv"))
+    fwrite(temp_set, file = paste0("D:/KMeansCurseSimTestSet/", metadata[i, "name"][[1]]))
     cat("written out the ", i, "th file \n")
   }
   
   end_time <- Sys.time()
   runtime <- end_time - start_time
   
-  cat("it took", runtime, "for that whole loop ")
+  cat("it took", runtime, "for that whole loop... \n")
   
 }
 
@@ -218,28 +219,12 @@ for (i in 1:10) {
 
 
 
-```{r Making the Data for the Plot}
+```{r Read Cluster Write}
 
+# define the vector of dimensions. Fixed for the remainder of this simulation. 
 log_sequence <- unique(round(10^seq(2, 4, length.out = 5)))
 
-test_data <- simple_data(m = 1200, n = 10, N = 10^4 - 10, k = 4, overlap = TRUE)
-
-trial <- slice_cluster_score(data = test_data, v = log_sequence, true_k = 4)
 
 ```
 
-
-```{r Plot, echo=TRUE}
-
-plot1 <- ggplot(data = trial, mapping  = aes(dimension, score)) +
-  geom_point() +
-  geom_smooth() +
-  scale_x_log10() +
-  xlab("Dimension") +
-  ylab("Adjusted Rand Index") +
-  labs(title = "Adjusted Rand Index vs Dimension")
-
-plot1
-
-```
 
