@@ -88,10 +88,10 @@ simple_data <- function(m, n, N, k, overlap) {
 }
 
 # uses simple_data to slice, cluster and format a passed dataset. The output is a frame of clusterings that should change based on the dimension, and ideally get worse based on dimension. We are going up to dimension 10 000 here and praying that is enough to show the curse of dimensionality. 
-slice_cluster_dataset <- function(data, v, true_k = NULL) {
+slice_cluster_dataset <- function(data, v) {
   # data - dataset to be sliced n scored
   # v - vector of dimension numbers to take arandi score at
-  # true_k - true number of clusters. if left unpassed, gap statistic will be used to estimate
+  # true_k - true number of clusters
   
   # initialise output frame
   frame_out <- tibble(
@@ -99,15 +99,20 @@ slice_cluster_dataset <- function(data, v, true_k = NULL) {
     True_Labels = data$Tag
   )
   
+  # if we are passed data then we can get true K
+  true_k <- length(unique(data$Tag))
+  
   #drop the tag col 
-  data_no_tag <- data[, colnames(data) != "Tag"]
+  data_no_tag <- data %>% select(-Tag)  # Option 3 (if using dplyr)
   
   # slice the dataset, use true k, then save out the clustering
   for (i in seq_along(v)) {
     
+    cat("SLICING DATASET AT ", v[i], "DIMENSIONS... \n")
+    
     # slice:
-    current_slice <- data_no_tag[, 1:v[i], drop = FALSE] # changed to v[i]
-    cat(v[i], "dimensions done slicing... \n")
+    current_slice <- data_no_tag[, 1:v[i], drop = FALSE]
+    cat(v[i], "dimensions done slicing, onto clustering... \n")
     
     kmobject <- kmeans(current_slice, 
                        centers = true_k,
@@ -117,7 +122,6 @@ slice_cluster_dataset <- function(data, v, true_k = NULL) {
     frame_out[[paste0("Clust", v[i])]] <- kmobject$cluster
     
     cat("Dimension", v[i], "done clustering \n")
-    
     
   }
   
@@ -129,7 +133,7 @@ slice_cluster_dataset <- function(data, v, true_k = NULL) {
 
 ```
 
-```{r Creating Datasets}
+```{r Creating Metadata}
 
 # m consistent across all sets. cluster size varying. 3 at 3 clusters, 4 at 4, 3 at 5. 
 # creating a dataframe with these parameters to store alongside as a (very) primitive attempt at a metadata file
@@ -179,7 +183,7 @@ if (file.exists("D:/KMeansCurseSimTestSet/metadata_kmcs")) {
 
 we are kinda seeing that it takes ~20s to make each data set. so let's keep a running estimate of how this works. but yeah now we want to write these out to the appropriate folder along with the metadata file. 
 
-```{r Generation Loop Itself Estimating K}
+```{r Data Generation Loop}
 
 metadata <- fread("D:/KMeansCurseSimTestSet/Metadata_kmcs")
 set.seed(1618)
@@ -223,8 +227,46 @@ for (i in 1:10) {
 
 # define the vector of dimensions. Fixed for the remainder of this simulation. 
 log_sequence <- unique(round(10^seq(2, 4, length.out = 5)))
+set.seed(1618)
+
+t_0 <- Sys.time()
+
+for (i in 1:10) {
+  
+  if (file.exists(
+    paste0("D:/KMeansCurseSimTestSet/Scores/Clust", sprintf("%02d", i))
+  )) {
+    cat("Clustering file for dataset ", i, "already exists... \n")
+  } else {
+    
+    temp_set <- fread(paste0("D:/KMeansCurseSimTestSet/set", sprintf("%02d", i)))
+    temp_clust <- slice_cluster_dataset(temp_set, log_sequence)
+    
+    fwrite(temp_clust, file = paste0("D:/KMeansCurseSimTestSet/Scores/Clust", sprintf("%02d", i)))
+    cat("Written out the file for set", i, "... \n")
+  }
+  
+  
+}
+
+t_1 <- Sys.time()
+cat("Took", t_1 - t_0, "in total... \n")
 
 
 ```
 
+
+
+```{r Score and Save Out}
+log_sequence <- unique(round(10^seq(2, 4, length.out = 5)))
+
+temp_clust <- fread("D:/KMeansCurseSimTestSet/Scores/Clust01")
+
+temp_scores <- tibble(
+  dataset <- character()
+)
+
+
+
+```
 
