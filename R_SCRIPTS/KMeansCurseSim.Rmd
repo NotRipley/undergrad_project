@@ -255,17 +255,57 @@ cat("Took", t_1 - t_0, "in total... \n")
 
 ```
 
+```{r Wow Another Function}
 
+# Takes a dataset and a name to call it. Returns a single tibble row containing the arandi scores comparing its True_Labels column and its other columns. 
+calculate_scores <- function(dataset, setname) {
+  
+  cols_to_cluster <- setdiff(names(dataset), c("Cell_ID", "True_Labels"))
+  
+  arandi_scores <- sapply(cols_to_cluster, function(col) {
+    adjustedRandIndex(dataset$True_Labels, dataset[[col]])
+  })
+  
+  result <- tibble(dataset = setname) %>%
+    bind_cols(as_tibble(t(arandi_scores)) %>% 
+                rename_with(~paste0("ARI_", .)))
+    
+  
+}
+
+
+```
 
 ```{r Score and Save Out}
 log_sequence <- unique(round(10^seq(2, 4, length.out = 5)))
 
-temp_clust <- fread("D:/KMeansCurseSimTestSet/Scores/Clust01")
+cat("BEGINNING SCORING... \n")
+set.seed(1618)
+t_0 <- Sys.time()
 
-temp_scores <- tibble(
-  dataset <- character()
-)
+adj_rand_scores <- NULL
 
+for (i in 1:10) {
+  
+  cat("Reading in the ", i, "th dataset... \n")
+  
+  temp_clust <- fread(paste0("D:/KMeansCurseSimTestSet/Scores/Clust", sprintf("%02d", i)))
+  temp_name <- paste0("ARI_", sprintf("%02d", i))
+  
+  cat("Scoring the ", i, "th dataset... \n")
+  temp_ari <- calculate_scores(temp_clust, temp_name)
+  cat("DONE, adding to tibble... \n")
+  
+  if (is.null(adj_rand_scores)) {
+    adj_rand_scores <- temp_ari
+  } else {
+    adj_rand_scores <- add_row(adj_rand_scores, temp_ari)
+  }
+  
+  cat("ADDED, moving on... \n")
+}
+
+adj_rand_scores
 
 
 ```
