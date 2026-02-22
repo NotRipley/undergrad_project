@@ -309,4 +309,6 @@ adj_rand_scores
 
 
 ```
+We see our whole workflow is replicable, at the mo on 10 datasets and up to 10^4 dimensions, so we run overnight on 10 datasets at 10^6. 
+
 
