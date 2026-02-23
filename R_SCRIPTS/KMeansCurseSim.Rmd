@@ -41,7 +41,7 @@ simple_data <- function(m, n, N, k, overlap) {
   rowtotal <- m
   coltotal <- n + N + 1
   
-  result <- matrix(0, nrow = rowtotal, ncol = coltotal)
+  result <- matrix(nrow = rowtotal, ncol = coltotal)
   
   # and initialise the noise that we'll add in
   if (N > 0) {
@@ -152,16 +152,16 @@ metadata <- tibble(
 
 generation_parameters <- list(
   
-  list(1, "set01", 1200, 10, 10^7 - 10, 3, TRUE),
-  list(2, "set02", 1200, 10, 10^7 - 10, 3, TRUE),
-  list(3, "set03", 1200, 10, 10^7 - 10, 3, FALSE),
-  list(4, "set04", 1200, 10, 10^7 - 10, 4, TRUE),
-  list(5, "set05", 1200, 10, 10^7 - 10, 4, TRUE),
-  list(6, "set06", 1200, 10, 10^7 - 10, 4, FALSE),
-  list(7, "set07", 1200, 10, 10^7 - 10, 4, FALSE),
-  list(8, "set08", 1200, 10, 10^7 - 10, 5, TRUE),
-  list(9, "set09", 1200, 10, 10^7 - 10, 5, TRUE),
-  list(10, "set10", 1200, 10, 10^7 - 10, 5, FALSE)
+  list(1, "set01", 1200, 10, 10^6 - 10, 3, TRUE),
+  list(2, "set02", 1200, 10, 10^6 - 10, 3, TRUE),
+  list(3, "set03", 1200, 10, 10^6 - 10, 3, FALSE),
+  list(4, "set04", 1200, 10, 10^6 - 10, 4, TRUE),
+  list(5, "set05", 1200, 10, 10^6 - 10, 4, TRUE),
+  list(6, "set06", 1200, 10, 10^6 - 10, 4, FALSE),
+  list(7, "set07", 1200, 10, 10^6 - 10, 4, FALSE),
+  list(8, "set08", 1200, 10, 10^6 - 10, 5, TRUE),
+  list(9, "set09", 1200, 10, 10^6 - 10, 5, TRUE),
+  list(10, "set10", 1200, 10, 10^6 - 10, 5, FALSE)
   
 )
 
