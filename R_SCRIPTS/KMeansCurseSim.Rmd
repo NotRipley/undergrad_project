@@ -3,6 +3,7 @@ title: "KMeansCurseSim"
 output: html_document
 ---
 
+Now, I'm going to turn back on the K estimation, and then run the thing through again, at 10^5 dimensions. Then, if it doesn't work, we drop this simulation. 
 
 
 ```{r Libraries}
@@ -87,6 +88,41 @@ simple_data <- function(m, n, N, k, overlap) {
   
 }
 
+##########################
+
+estimate_k <- function(data, scale) {
+  
+  if (!is.logical(scale) | scale == FALSE) {
+    cat("Not scaling data... \n")
+  } else if (scale == TRUE) {
+    data <- scale(data)
+    cat("Scaling data... \n")
+  }
+    
+  clusGapcall <- clusGap(data,
+                       FUNcluster = kmeans,
+                       nstart = 25,
+                       iter.max = 20,
+                       K.max = 10,
+                       B = 200)
+
+  k_val <- maxSE(clusGapcall$Tab[, "gap"], clusGapcall$Tab[, "SE.sim"], 
+             method = "firstSEmax")
+  
+  # Specify 2 as a floor for clustering such that we can extract a silhouette score from it. This is hopefully wrapped up in our assumption that there are clusters at all, so it makes sense to specify there are more than one. 
+  if (k_val < 2) {
+    k_val <- 2
+    cat("Had to use the 2 cluster floor btw... \n")
+  }
+
+  cat("clusGap gives ", k_val, " as our K estimate. \n")
+  
+  return(k_val)
+  
+}
+
+##############################
+
 # uses simple_data to slice, cluster and format a passed dataset. The output is a frame of clusterings that should change based on the dimension, and ideally get worse based on dimension. We are going up to dimension 10 000 here and praying that is enough to show the curse of dimensionality. 
 slice_cluster_dataset <- function(data, v) {
   # data - dataset to be sliced n scored
@@ -100,10 +136,12 @@ slice_cluster_dataset <- function(data, v) {
   )
   
   # if we are passed data then we can get true K
-  true_k <- length(unique(data$Tag))
+  #use_k <- length(unique(data$Tag))
+  
+  use_k <- estimate_k(data, scale = FALSE)
   
   #drop the tag col 
-  data_no_tag <- data %>% select(-Tag)  # Option 3 (if using dplyr)
+  data_no_tag <- data %>% select(-Tag)
   
   # slice the dataset, use true k, then save out the clustering
   for (i in seq_along(v)) {
@@ -115,7 +153,7 @@ slice_cluster_dataset <- function(data, v) {
     cat(v[i], "dimensions done slicing, onto clustering... \n")
     
     kmobject <- kmeans(current_slice, 
-                       centers = true_k,
+                       centers = use_k,
                        iter.max = 20,
                        nstart = 25)
     
@@ -152,16 +190,16 @@ metadata <- tibble(
 
 generation_parameters <- list(
   
-  list(1, "set01", 1200, 10, 10^6 - 10, 3, TRUE),
-  list(2, "set02", 1200, 10, 10^6 - 10, 3, TRUE),
-  list(3, "set03", 1200, 10, 10^6 - 10, 3, FALSE),
-  list(4, "set04", 1200, 10, 10^6 - 10, 4, TRUE),
-  list(5, "set05", 1200, 10, 10^6 - 10, 4, TRUE),
-  list(6, "set06", 1200, 10, 10^6 - 10, 4, FALSE),
-  list(7, "set07", 1200, 10, 10^6 - 10, 4, FALSE),
-  list(8, "set08", 1200, 10, 10^6 - 10, 5, TRUE),
-  list(9, "set09", 1200, 10, 10^6 - 10, 5, TRUE),
-  list(10, "set10", 1200, 10, 10^6 - 10, 5, FALSE)
+  list(1, "set01", 1200, 10, 10^5 - 10, 3, TRUE),
+  list(2, "set02", 1200, 10, 10^5 - 10, 3, TRUE),
+  list(3, "set03", 1200, 10, 10^5 - 10, 3, FALSE),
+  list(4, "set04", 1200, 10, 10^5 - 10, 4, TRUE),
+  list(5, "set05", 1200, 10, 10^5 - 10, 4, TRUE),
+  list(6, "set06", 1200, 10, 10^5 - 10, 4, FALSE),
+  list(7, "set07", 1200, 10, 10^5 - 10, 4, FALSE),
+  list(8, "set08", 1200, 10, 10^5 - 10, 5, TRUE),
+  list(9, "set09", 1200, 10, 10^5 - 10, 5, TRUE),
+  list(10, "set10", 1200, 10, 10^5 - 10, 5, FALSE)
   
 )
 
@@ -181,7 +219,8 @@ if (file.exists("D:/KMeansCurseSimTestSet/metadata_kmcs")) {
 
 ```
 
-we are kinda seeing that it takes ~20s to make each data set. so let's keep a running estimate of how this works. but yeah now we want to write these out to the appropriate folder along with the metadata file. 
+
+
 
 ```{r Data Generation Loop}
 
@@ -226,7 +265,7 @@ for (i in 1:10) {
 ```{r Read Cluster Write}
 
 # define the vector of dimensions. Fixed for the remainder of this simulation. 
-log_sequence <- unique(round(10^seq(2, 4, length.out = 5)))
+log_sequence <- unique(round(10^seq(2, 5, length.out = 5)))
 set.seed(1618)
 
 t_0 <- Sys.time()

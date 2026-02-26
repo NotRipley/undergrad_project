@@ -72,7 +72,14 @@ make_a_dataset <- function(proj_name, batchCells, group.prob, de.prob, nGenes) {
 
 ```
 
+cluster separation / principal component breakdown
+second plot either of these
 
+reference to github can go at end of intro or similar
+
+add more datasets
+
+resolution of image for font size
 
 ```{r Make Parameter Matrix}
 
@@ -785,6 +792,104 @@ ggsave("C:/Users/fmhfl/Desktop/Undergrad Project/undergrad_project/OUTPUTS/metri
        width = 10, 
        height = 8, 
        dpi = 300)
+
+```
+
+
+```{r Separation Sim}
+
+parameter_matrix_separation <- tibble(
+  ID = 1:60,
+  proj_name = paste0("set", sprintf("%02d", 1:60), "SEP"),
+  batchCells = rep(500, 60),
+  group.prob = rep(list(c(0.25, 0.25, 0.25, 0.25)), 60),
+  de.prob = c(
+    rep(0.1, 15),
+    rep(0.2, 15),
+    rep(0.3, 15),
+    rep(0.4, 15)
+  ),
+  nGenes = rep(2000, 60)
+)
+
+# write out this file
+if (file.exists(file = "D:/AlgorithmComparisonSim/SeparationSim/metadata_acsSEP")) {
+  
+  cat("metadata_acsSEP file already exists. \n")
+  
+} else {
+  
+  fwrite(parameter_matrix, file = "D:/AlgorithmComparisonSim/SeparationSim/metadata_acsSEP")
+  
+  cat("metadata_acsSEP file created. \n")
+  
+}
+
+```
+
+```{r Data Creation SEP}
+
+# read the file back in and set random seed for reproducibility
+metadata_acsSEP <- fread("D:/AlgorithmComparisonSim/SeparationSim/metadata_acsSEP")
+
+metadata <- metadata |> 
+  mutate(
+    ID = as.numeric(ID),
+    proj_name = as.character(proj_name),
+    batchCells = as.numeric(batchCells),
+    de.prob = as.numeric(de.prob),
+    nGenes = as.numeric(nGenes),
+    group.prob = strsplit(group.prob, "\\|") |>
+      lapply(as.numeric)
+  )
+
+set.seed(1618)
+
+for (i in 1:nrow(metadata)) {
+  
+  # check if there is a file in the directory by the name we want
+  
+  if (!file.exists(file = paste0("D:/AlgorithmComparisonSim/", metadata$proj_name[i])) | 
+      !file.exists(file = paste0("D:/AlgorithmComparisonSim/", metadata$proj_name[i], "true_labels"))) {
+    
+    # make the dataset if at least one of them is missing
+    temp_object <- make_a_dataset(
+      proj_name = metadata$proj_name[i],
+      batchCells = metadata$batchCells[i],
+      group.prob = metadata$group.prob[[i]],
+      de.prob = metadata$de.prob[i],
+      nGenes = metadata$nGenes[i]
+    )
+    
+    if (file.exists(file = paste0("D:/AlgorithmComparisonSim/", metadata$proj_name[i]))) {
+      cat("File for", i, "already exists, moving on... \n")
+    } else {
+      
+      #write out counts
+      fwrite(temp_object$counts, file = paste0("D:/AlgorithmComparisonSim/", metadata[i, 2]))
+      
+      cat("File: ", metadata$proj_name[i], "created. Moving on... \n")
+      
+    }
+    
+    
+    
+    if (file.exists(file = paste0("D:/AlgorithmComparisonSim/", metadata$proj_name[i], "true_labels"))) {
+      cat("File: ", metadata$proj_name[i], "true_labels already exists in folder. Moving on... \n")
+      
+      } else {
+        
+      
+        fwrite(temp_object$labels, file = paste0("D:/AlgorithmComparisonSim/", metadata$proj_name[i], "true_labels"))  
+        
+        cat("True labels for", i, "created... \n")
+        
+    }
+    
+  }
+  
+}
+
 
 ```
 
