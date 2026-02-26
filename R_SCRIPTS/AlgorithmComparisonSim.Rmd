@@ -339,7 +339,7 @@ estimate_k <- function(embeddings, scale) {
 
 # Takes a seurat object post-SCTransform. Estimates a workable number of PCs, runs PCA, clusters on that number of PCs.
 
-run_PCAkmeans <- function(set_index, counts, just_use_fifty = FALSE, k = NULL, scale = FALSE) {
+run_PCAkmeans <- function(set_index, counts, just_use_threshold = FALSE, k = NULL, scale = FALSE) {
   
   start_time <- Sys.time()
   cat("BEGIN run_PCAkmeans function. \n")
@@ -350,10 +350,11 @@ run_PCAkmeans <- function(set_index, counts, just_use_fifty = FALSE, k = NULL, s
   counts <- counts[, apply(counts, 2, var) > 0]
 
   
-  if (just_use_fifty == FALSE) {
+  if (just_use_threshold == FALSE) {
     npcs <- find_npcs(counts)[[1]]
   } else {
-      npcs <- 50
+      #threshold as set by exploratory analysis further down the page
+      npcs <- 265
     } 
   
   cat("Continuing on ", npcs, " PCs. \n")
@@ -458,11 +459,48 @@ run_graph_based <- function(set_index, counts, mode) {
   
   return(clustering)
   
+}
+
+#####################
+
+choose_pcs <- function(dataset) {
   
+  # transpose then drop zero variance columns from consideration
+  dataset <- t(dataset)
+  dataset <- dataset[, apply(dataset, 2, var) != 0]
+  
+  # Calculate PCA
+  pca_result <- prcomp(dataset, center = TRUE, scale. = TRUE)
+  
+  # Create data frame for plotting
+  var_explained <- data.frame(
+    PC = 1:length(pca_result$sdev),
+    Variance = pca_result$sdev^2 / sum(pca_result$sdev^2),
+    Cumulative = cumsum(pca_result$sdev^2 / sum(pca_result$sdev^2))
+  )
+  
+  # Plot
+  plot <- ggplot(var_explained, aes(x = PC, y = Variance)) +
+    geom_line() +
+    geom_point(size = 2) +
+    labs(x = "Principal Component",
+         y = "Proportion of Variance Explained",
+         title = "PCA Variance Explained") +
+    theme_minimal()
+  
+  first_past_threshold <- var_explained$PC[which(var_explained$Cumulative > 0.8)[1]]
+  
+  return(list(var_explained = var_explained,
+              plot = plot,
+              first_past_threshold = first_past_threshold))
   
 }
 
+
 ```
+
+
+
 
 
 
@@ -545,7 +583,7 @@ for (i in 1:10) {
   ))
   
   #trying WITHOUT scaling first
-  temp_cluster <- run_PCAkmeans(i, temp_set, just_use_fifty = FALSE, scale = FALSE)
+  temp_cluster <- run_PCAkmeans(i, temp_set, just_use_threshold = FALSE, scale = FALSE)
   
   if (file.exists(
     
@@ -819,7 +857,7 @@ if (file.exists(file = "D:/AlgorithmComparisonSim/SeparationSim/metadata_acsSEP"
   
 } else {
   
-  fwrite(parameter_matrix, file = "D:/AlgorithmComparisonSim/SeparationSim/metadata_acsSEP")
+  fwrite(parameter_matrix_separation, file = "D:/AlgorithmComparisonSim/SeparationSim/metadata_acsSEP")
   
   cat("metadata_acsSEP file created. \n")
   
@@ -832,7 +870,7 @@ if (file.exists(file = "D:/AlgorithmComparisonSim/SeparationSim/metadata_acsSEP"
 # read the file back in and set random seed for reproducibility
 metadata_acsSEP <- fread("D:/AlgorithmComparisonSim/SeparationSim/metadata_acsSEP")
 
-metadata <- metadata |> 
+metadata_acsSEP <- metadata_acsSEP |> 
   mutate(
     ID = as.numeric(ID),
     proj_name = as.character(proj_name),
@@ -845,42 +883,42 @@ metadata <- metadata |>
 
 set.seed(1618)
 
-for (i in 1:nrow(metadata)) {
+for (i in 1:nrow(metadata_acsSEP)) {
   
   # check if there is a file in the directory by the name we want
   
-  if (!file.exists(file = paste0("D:/AlgorithmComparisonSim/", metadata$proj_name[i])) | 
-      !file.exists(file = paste0("D:/AlgorithmComparisonSim/", metadata$proj_name[i], "true_labels"))) {
+  if (!file.exists(file = paste0("D:/AlgorithmComparisonSim/SeparationSim/", metadata_acsSEP$proj_name[i])) | 
+      !file.exists(file = paste0("D:/AlgorithmComparisonSim/SeparationSim/", metadata_acsSEP$proj_name[i], "true_labels"))) {
     
     # make the dataset if at least one of them is missing
     temp_object <- make_a_dataset(
-      proj_name = metadata$proj_name[i],
-      batchCells = metadata$batchCells[i],
-      group.prob = metadata$group.prob[[i]],
-      de.prob = metadata$de.prob[i],
-      nGenes = metadata$nGenes[i]
+      proj_name = metadata_acsSEP$proj_name[i],
+      batchCells = metadata_acsSEP$batchCells[i],
+      group.prob = metadata_acsSEP$group.prob[[i]],
+      de.prob = metadata_acsSEP$de.prob[i],
+      nGenes = metadata_acsSEP$nGenes[i]
     )
     
-    if (file.exists(file = paste0("D:/AlgorithmComparisonSim/", metadata$proj_name[i]))) {
+    if (file.exists(file = paste0("D:/AlgorithmComparisonSim/SeparationSim/", metadata_acsSEP$proj_name[i]))) {
       cat("File for", i, "already exists, moving on... \n")
     } else {
       
       #write out counts
-      fwrite(temp_object$counts, file = paste0("D:/AlgorithmComparisonSim/", metadata[i, 2]))
+      fwrite(temp_object$counts, file = paste0("D:/AlgorithmComparisonSim/SeparationSim/", metadata_acsSEP[i, 2]))
       
-      cat("File: ", metadata$proj_name[i], "created. Moving on... \n")
+      cat("File: ", metadata_acsSEP$proj_name[i], "created. Moving on... \n")
       
     }
     
     
     
-    if (file.exists(file = paste0("D:/AlgorithmComparisonSim/", metadata$proj_name[i], "true_labels"))) {
-      cat("File: ", metadata$proj_name[i], "true_labels already exists in folder. Moving on... \n")
+    if (file.exists(file = paste0("D:/AlgorithmComparisonSim/SeparationSim/", metadata_acsSEP$proj_name[i], "true_labels"))) {
+      cat("File: ", metadata_acsSEP$proj_name[i], "true_labels already exists in folder. Moving on... \n")
       
       } else {
         
       
-        fwrite(temp_object$labels, file = paste0("D:/AlgorithmComparisonSim/", metadata$proj_name[i], "true_labels"))  
+        fwrite(temp_object$labels, file = paste0("D:/AlgorithmComparisonSim/SeparationSim/", metadata_acsSEP$proj_name[i], "true_labels"))  
         
         cat("True labels for", i, "created... \n")
         
@@ -894,4 +932,118 @@ for (i in 1:nrow(metadata)) {
 ```
 
 
+we see that 52 PCs gives us 90% variance on the first set
+it's 32 for the second one (note this is without scaling, which i think it should be with)
+it's 45 for the third one. so we check what the vibe is if we scale it, and do a bit more research as to whether we need to at all, and then we go for an average over all sixty, round to a nearest nice number, go from there. 
+
+it's 354 when i do scale. 
+
+```{r Choosing a Number of PCs SEP}
+
+temp_set <- fread("D:AlgorithmComparisonSim/SeparationSim/set01SEP")
+
+temp_prcomp <- choose_pcs(temp_set)
+
+temp_prcomp$first_past_threshold
+
+
+# read the file back in and set random seed for reproducibility
+metadata_acsSEP <- fread("D:/AlgorithmComparisonSim/SeparationSim/metadata_acsSEP")
+
+metadata_acsSEP <- metadata_acsSEP |> 
+  mutate(
+    ID = as.numeric(ID),
+    proj_name = as.character(proj_name),
+    batchCells = as.numeric(batchCells),
+    de.prob = as.numeric(de.prob),
+    nGenes = as.numeric(nGenes),
+    group.prob = strsplit(group.prob, "\\|") |>
+      lapply(as.numeric)
+  )
+
+set.seed(1618)
+
+# initialise vector
+threshold_values <- matrix(nrow = nrow(metadata_acsSEP), ncol = 1)
+
+for (i in 1:nrow(metadata_acsSEP)) {
+  
+  temp_set <- fread(paste0("D:AlgorithmComparisonSim/SeparationSim/", metadata_acsSEP$proj_name[[i]]))
+  
+  value <- choose_pcs(temp_set)$first_past_threshold
+
+  #cat(value, " \n")
+  threshold_values[i] <- value
+  
+}
+
+mean(threshold_values)
+
+
+```
+So we choose 265 PCs for the separation simulation, subject to reduction if this is loads. But this is the average amount that explains 80% variation in our standardised datasets, hence a pretty justified choice i reckon. 
+
+ok just needs left for 20 mins or so.
+
+```{r PK SEP Cluster and Writeout}
+
+t_0 <- Sys.time()
+cat("BEGINNING PK SEP CLUSTER and WRITEOUT FULL RUN. \n")
+
+# read the file back in and set random seed for reproducibility
+metadata_acsSEP <- fread("D:/AlgorithmComparisonSim/SeparationSim/metadata_acsSEP")
+
+metadata_acsSEP <- metadata_acsSEP |> 
+  mutate(
+    ID = as.numeric(ID),
+    proj_name = as.character(proj_name),
+    batchCells = as.numeric(batchCells),
+    de.prob = as.numeric(de.prob),
+    nGenes = as.numeric(nGenes),
+    group.prob = strsplit(group.prob, "\\|") |>
+      lapply(as.numeric)
+  )
+
+set.seed(1618)
+
+for (i in nrow(metadata_acsSEP)) {
+  
+  temp_set <- fread(paste0(
+    "D:/AlgorithmComparisonSim/SeparationSim/", metadata_acsSEP$proj_name[i]
+  ))
+  
+  if (file.exists(
+    
+    paste0("D:/AlgorithmComparisonSim/PK", metadata_acsSEP$proj_name[i])
+    
+  )) { 
+    cat("File ", paste0("D:/AlgorithmComparisonSim/PK", metadata_acsSEP$proj_name[i]), "already exists... \n") 
+  } else {
+      
+    temp_cluster <- run_PCAkmeans(i, temp_set, just_use_threshold = TRUE, scale = FALSE)
+    fwrite(temp_cluster, paste0("D:/AlgorithmComparisonSim/PK", metadata_acsSEP$proj_name[i]))
+    
+    cat("Written out file from set", i, " ... \n")
+    
+    }
+  
+  cat("FINISHED clustering the ", i, "th one! \n")
+    
+}
+
+t_1 <- Sys.time()
+cat("Took ", t_1 - t_0, "to do all 10. \n")
+
+```
+
+```{r LV SEP Cluster and Writeout}
+
+
+```
+
+```{r LD SEP Cluster and Writeout}
+
+
+
+```
 
