@@ -68,129 +68,7 @@ make_a_dataset <- function(proj_name, batchCells, group.prob, de.prob, nGenes) {
   
 }
 
-
-
-```
-
-cluster separation / principal component breakdown
-second plot either of these
-
-reference to github can go at end of intro or similar
-
-add more datasets
-
-resolution of image for font size
-
-```{r Make Parameter Matrix}
-
-parameter_matrix <- tibble(
-  ID = 1:10,
-  proj_name = paste0("set", sprintf("%02d", 1:10)),
-  batchCells = rep(500, 10),
-  group.prob = list(
-    c(0.25, 0.25, 0.25, 0.25),
-    c(0.33, 0.33, 0.34),
-    c(0.2, 0.2, 0.2, 0.2, 0.2),
-    c(0.3, 0.3, 0.4),
-    c(0.25, 0.25, 0.25, 0.25),
-    c(0.2, 0.3, 0.5),
-    c(0.15, 0.15, 0.2, 0.25, 0.25),
-    c(0.4, 0.3, 0.3),
-    c(0.2, 0.2, 0.2, 0.2, 0.2),
-    c(0.25, 0.35, 0.4)
-  ),
-  de.prob = c(0.05, 0.1, 0.1, 0.2, 0.2, 0.2, 0.2, 0.3, 0.3, 0.5),
-  nGenes = rep(2000, 10)
-)
-
-# write out this file
-if (file.exists(file = "D:/AlgorithmComparisonSim/metadata_acs")) {
-  
-  cat("metadata_acs file already exists. \n")
-  
-} else {
-  
-  fwrite(parameter_matrix, file = "D:/AlgorithmComparisonSim/metadata_acs")
-  
-  cat("metadata file created. \n")
-  
-}
-
-```
-
-```{r Generate Datasets}
-
-# read the file back in and set random seed for reproducibility
-metadata <- fread("D:/AlgorithmComparisonSim/metadata_acs")
-
-metadata <- metadata |> 
-  mutate(
-    ID = as.numeric(ID),
-    proj_name = as.character(proj_name),
-    batchCells = as.numeric(batchCells),
-    de.prob = as.numeric(de.prob),
-    nGenes = as.numeric(nGenes),
-    group.prob = strsplit(group.prob, "\\|") |>
-      lapply(as.numeric)
-  )
-
-set.seed(1618)
-
-for (i in 1:nrow(metadata)) {
-  
-  # check if there is a file in the directory by the name we want
-  
-  if (!file.exists(file = paste0("D:/AlgorithmComparisonSim/", metadata$proj_name[i])) | 
-      !file.exists(file = paste0("D:/AlgorithmComparisonSim/", metadata$proj_name[i], "true_labels"))) {
-    
-    # make the dataset if at least one of them is missing
-    temp_object <- make_a_dataset(
-      proj_name = metadata$proj_name[i],
-      batchCells = metadata$batchCells[i],
-      group.prob = metadata$group.prob[[i]],
-      de.prob = metadata$de.prob[i],
-      nGenes = metadata$nGenes[i]
-    )
-    
-    if (file.exists(file = paste0("D:/AlgorithmComparisonSim/", metadata$proj_name[i]))) {
-      cat("File for", i, "already exists, moving on... \n")
-    } else {
-      
-      #write out counts
-      fwrite(temp_object$counts, file = paste0("D:/AlgorithmComparisonSim/", metadata[i, 2]))
-      
-      cat("File: ", metadata$proj_name[i], "created. Moving on... \n")
-      
-    }
-    
-    
-    
-    if (file.exists(file = paste0("D:/AlgorithmComparisonSim/", metadata$proj_name[i], "true_labels"))) {
-      cat("File: ", metadata$proj_name[i], "true_labels already exists in folder. Moving on... \n")
-      
-      } else {
-        
-      
-        fwrite(temp_object$labels, file = paste0("D:/AlgorithmComparisonSim/", metadata$proj_name[i], "true_labels"))  
-        
-        cat("True labels for", i, "created... \n")
-        
-    }
-    
-  }
-  
-}
-
-```
-
-Since we chose to store the counts instead of the whole seurat object, we will write a quick helper function that brings us to the seurat object. Because of the scaling etc, at this stage we make the decision to cluster all of our methods on the seurat's scaled data layer as far as possible. This will involve some further layers (graphs) for the Louvain and Leiden algorithms but that's fine. 
-
-
-First order of business - increase amount of bootstrapping, drastically decrease amount of PCs, neglect pure kmeans (without PCA) for now, for timesaving reasons. 
-
-Ok we need to manage to do the clusGap bit. 
-
-```{r More Functions}
+#############################################################################
 
 # rewrite our K Means function. Need to fully understand what's going on. 
 
@@ -255,7 +133,7 @@ run_kmeans <- function(set_index, counts, k = NULL) {
   
 }
 
-####################
+#############################################################################
 
 
 # Takes a matrix of counts data (transposes it) and then finds a good number of PCs by which to split the data for cluster evaluation. Returns a list of this number and a plot of the variance explained by each PC, so that we can easily compare whether it's doing the right thing. 
@@ -298,7 +176,7 @@ find_npcs <- function(counts) {
   
 }
 
-####################
+#############################################################################
 
 
 estimate_k <- function(embeddings, scale) {
@@ -334,7 +212,7 @@ estimate_k <- function(embeddings, scale) {
 
 
 
-####################
+##############################################################################
 
 
 # Takes a seurat object post-SCTransform. Estimates a workable number of PCs, runs PCA, clusters on that number of PCs.
@@ -403,7 +281,7 @@ run_PCAkmeans <- function(set_index, counts, just_use_threshold = FALSE, k = NUL
 }
 
 
-#################
+##############################################################################
 
 
 # Takes a seurat object post-SCTransform. Runs the Louvain Algorithm native to Seurat, IF we can make sure it's not doing any extra optimisation under the hood. Otherwise, we can pull the count data, make the SNN graph and cluster ourselves.
@@ -461,7 +339,7 @@ run_graph_based <- function(set_index, counts, mode) {
   
 }
 
-#####################
+#############################################################################
 
 choose_pcs <- function(dataset) {
   
@@ -497,12 +375,154 @@ choose_pcs <- function(dataset) {
 }
 
 
+###############################################################################
+
+cluster_scores <- function(clustering, original_counts, true_labels, algorithm) {
+  
+  # silhouette score
+  whole_silhouette <- silhouette(clustering, dist = dist(original_counts))
+  score_silhouette <- mean(whole_silhouette[, 3])
+  
+  #calinhara 
+  score_calinhara <- calinhara(original_counts, clustering)
+  
+  #dbouldin
+  score_dbouldin <- index.DB(original_counts, clustering)[["DB"]]
+  
+  #arandi
+  score_ari <- mclust::adjustedRandIndex(true_labels, clustering)
+  
+  scores <- tibble(
+    
+    algorithm = algorithm,
+    avg_silhouette = score_silhouette,
+    calinski_harabasz = score_calinhara,
+    davies_bouldin = score_dbouldin,
+    adjusted_rand_index = score_ari
+    
+  )
+  
+  return(scores)
+  
+}
+
 ```
 
+cluster separation / principal component breakdown
+second plot either of these
+
+reference to github can go at end of intro or similar
+
+add more datasets
+
+resolution of image for font size
 
 
+%%%%%%%%%%%%%%%%%%%
+% Base Simulation %
+%%%%%%%%%%%%%%%%%%%
 
+```{r Make Parameter Matrix}
 
+parameter_matrix <- tibble(
+  ID = 1:60,
+  proj_name = paste0("set", sprintf("%02d", 1:60)),
+  batchCells = rep(500, 60),
+  group.prob = rep(list(
+    c(0.25, 0.25, 0.25, 0.25),
+    c(0.33, 0.33, 0.34),
+    c(0.2, 0.2, 0.2, 0.2, 0.2),
+    c(0.3, 0.3, 0.4),
+    c(0.25, 0.25, 0.25, 0.25),
+    c(0.2, 0.3, 0.5),
+    c(0.15, 0.15, 0.2, 0.25, 0.25),
+    c(0.4, 0.3, 0.3),
+    c(0.2, 0.2, 0.2, 0.2, 0.2),
+    c(0.25, 0.35, 0.4)
+  ), times = 6),
+  de.prob = rep(c(0.05, 0.1, 0.1, 0.2, 0.2, 0.2, 0.2, 0.3, 0.3, 0.5), each = 6),
+  nGenes = rep(2000, 60)
+)
+
+# write out this file
+if (file.exists(file = "D:/AlgorithmComparisonSim/BaseSim/metadata_acs")) {
+  
+  cat("metadata_acs file already exists. \n")
+  
+} else {
+  
+  fwrite(parameter_matrix, file = "D:/AlgorithmComparisonSim/BaseSim/metadata_acs")
+  
+  cat("metadata file created. \n")
+  
+}
+
+```
+
+```{r Generate Datasets}
+
+# read the file back in and set random seed for reproducibility
+metadata <- fread("D:/AlgorithmComparisonSim/BaseSim/metadata_acs")
+
+metadata <- metadata |> 
+  mutate(
+    ID = as.numeric(ID),
+    proj_name = as.character(proj_name),
+    batchCells = as.numeric(batchCells),
+    de.prob = as.numeric(de.prob),
+    nGenes = as.numeric(nGenes),
+    group.prob = strsplit(group.prob, "\\|") |>
+      lapply(as.numeric)
+  )
+
+set.seed(1618)
+
+for (i in 1:nrow(metadata)) {
+  
+  # check if there is a file in the directory by the name we want
+  
+  if (!file.exists(file = paste0("D:/AlgorithmComparisonSim/BaseSim/", metadata$proj_name[i])) | 
+      !file.exists(file = paste0("D:/AlgorithmComparisonSim/BaseSim/", metadata$proj_name[i], "true_labels"))) {
+    
+    # make the dataset if at least one of them is missing
+    temp_object <- make_a_dataset(
+      proj_name = metadata$proj_name[i],
+      batchCells = metadata$batchCells[i],
+      group.prob = metadata$group.prob[[i]],
+      de.prob = metadata$de.prob[i],
+      nGenes = metadata$nGenes[i]
+    )
+    
+    if (file.exists(file = paste0("D:/AlgorithmComparisonSim/BaseSim/", metadata$proj_name[i]))) {
+      cat("File for", i, "already exists, moving on... \n")
+    } else {
+      
+      #write out counts
+      fwrite(temp_object$counts, file = paste0("D:/AlgorithmComparisonSim/BaseSim/", metadata[i, 2]))
+      
+      cat("File: ", metadata$proj_name[i], "created. Moving on... \n")
+      
+    }
+    
+    
+    
+    if (file.exists(file = paste0("D:/AlgorithmComparisonSim/BaseSim/", metadata$proj_name[i], "true_labels"))) {
+      cat("File: ", metadata$proj_name[i], "true_labels already exists in folder. Moving on... \n")
+      
+      } else {
+        
+      
+        fwrite(temp_object$labels, file = paste0("D:/AlgorithmComparisonSim/BaseSim/", metadata$proj_name[i], "true_labels"))  
+        
+        cat("True labels for", i, "created... \n")
+        
+    }
+    
+  }
+  
+}
+
+```
 
 ```{r Louvain Cluster and Writeout}
 
@@ -608,43 +628,6 @@ cat("Took ", t_1 - t_0, "to do all 10. \n")
 
 ```
 
-Creating clustering evaluation function. Choose Silhouette, Davies-Bouldin, Calinski-Harabasz, Adj Rand Index. 
-
-```{r Cluster Evaluation Function}
-
-cluster_scores <- function(clustering, original_counts, true_labels, algorithm) {
-  
-  # silhouette score
-  whole_silhouette <- silhouette(clustering, dist = dist(original_counts))
-  score_silhouette <- mean(whole_silhouette[, 3])
-  
-  #calinhara 
-  score_calinhara <- calinhara(original_counts, clustering)
-  
-  #dbouldin
-  score_dbouldin <- index.DB(original_counts, clustering)[["DB"]]
-  
-  #arandi
-  score_ari <- mclust::adjustedRandIndex(true_labels, clustering)
-  
-  scores <- tibble(
-    
-    algorithm = algorithm,
-    avg_silhouette = score_silhouette,
-    calinski_harabasz = score_calinhara,
-    davies_bouldin = score_dbouldin,
-    adjusted_rand_index = score_ari
-    
-  )
-  
-  return(scores)
-  
-}
-
-```
-
-
-
 ```{r PK Scores Writeout}
 
 t_0 <- Sys.time()
@@ -685,8 +668,6 @@ if (file.exists("D:/AlgorithmComparisonSim/Scores/PK_allscores")) {
 }
 
 ```
-
-
 
 ```{r LV Scores Writeout}
 
@@ -786,8 +767,6 @@ if (file.exists("D:/AlgorithmComparisonSim/Scores/LD_allscores")) {
 
 ```
 
-
-
 ```{r Comparison Plot}
 
 LV_allscores <- fread("D:/AlgorithmComparisonSim/Scores/LV_allscores")
@@ -833,8 +812,11 @@ ggsave("C:/Users/fmhfl/Desktop/Undergrad Project/undergrad_project/OUTPUTS/metri
 
 ```
 
+%%%%%%%%%%%%%%%%%%%%%%%%%
+% Separation Simulation %
+%%%%%%%%%%%%%%%%%%%%%%%%%
 
-```{r Separation Sim}
+```{r Make Parameter Matrix SEP}
 
 parameter_matrix_separation <- tibble(
   ID = 1:60,
@@ -865,7 +847,7 @@ if (file.exists(file = "D:/AlgorithmComparisonSim/SeparationSim/metadata_acsSEP"
 
 ```
 
-```{r Data Creation SEP}
+```{r Generate Datasets SEP}
 
 # read the file back in and set random seed for reproducibility
 metadata_acsSEP <- fread("D:/AlgorithmComparisonSim/SeparationSim/metadata_acsSEP")
@@ -931,13 +913,6 @@ for (i in 1:nrow(metadata_acsSEP)) {
 
 ```
 
-
-we see that 52 PCs gives us 90% variance on the first set
-it's 32 for the second one (note this is without scaling, which i think it should be with)
-it's 45 for the third one. so we check what the vibe is if we scale it, and do a bit more research as to whether we need to at all, and then we go for an average over all sixty, round to a nearest nice number, go from there. 
-
-it's 354 when i do scale. 
-
 ```{r Choosing a Number of PCs SEP}
 
 temp_set <- fread("D:AlgorithmComparisonSim/SeparationSim/set01SEP")
@@ -981,10 +956,6 @@ mean(threshold_values)
 
 
 ```
-So we choose 265 PCs for the separation simulation, subject to reduction if this is loads. But this is the average amount that explains 80% variation in our standardised datasets, hence a pretty justified choice i reckon. 
-
-ok just needs left for 20 mins or so.
-we add print statements, then let it run as we write more stuff into the doc
 
 ```{r PK SEP Cluster and Writeout}
 
@@ -1052,4 +1023,43 @@ cat("Took ", t_1 - t_0, "to do all 10. \n")
 
 
 ```
+
+%%%%%%%%%%%%%%%%%%%%%%%%
+% PC Number Simulation %
+%%%%%%%%%%%%%%%%%%%%%%%%
+
+For this, the data is generated much the same (identically?) to the base sim. However, after finding an optimal number of PCs for the data, we then run the clustering and scoring on 1, .5, and 2 times this number of PCs. The results will show the robustness of different scoring methods to number of PCs. Plan is sixty datasets. 
+
+```{r PC Number Sim}
+
+parameter_matrix_pcnumber <- tibble(
+  ID = 1:60,
+  proj_name = paste0("set", sprintf("%02d", 1:60), "PCN"),
+  batchCells = rep(500, 60),
+  group.prob = rep(list(c(0.25, 0.25, 0.25, 0.25)), 60),
+  de.prob = c(
+    rep(0.1, 15),
+    rep(0.2, 15),
+    rep(0.3, 15),
+    rep(0.4, 15)
+  ),
+  nGenes = rep(2000, 60)
+)
+
+# write out this file
+if (file.exists(file = "D:/AlgorithmComparisonSim/PCNSim/metadata_acsPCN")) {
+  
+  cat("metadata_acsPCN file already exists. \n")
+  
+} else {
+  
+  fwrite(parameter_matrix_separation, file = "D:/AlgorithmComparisonSim/PCNSim/metadata_acsPCN")
+  
+  cat("metadata_acsPCN file created. \n")
+  
+}
+
+```
+
+
 
