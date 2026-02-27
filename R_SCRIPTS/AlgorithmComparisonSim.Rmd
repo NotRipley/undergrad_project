@@ -217,23 +217,16 @@ estimate_k <- function(embeddings, scale) {
 
 # Takes a seurat object post-SCTransform. Estimates a workable number of PCs, runs PCA, clusters on that number of PCs.
 
-run_PCAkmeans <- function(set_index, counts, just_use_threshold = FALSE, k = NULL, scale = FALSE) {
+run_PCAkmeans <- function(set_index, counts, threshold, k = NULL, scale = FALSE) {
   
   start_time <- Sys.time()
   cat("BEGIN run_PCAkmeans function. \n")
   
-  # We want to transpose the matrix so it's cells x genes
+  # We want to transpose the matrix so it's cells x genes and get rid of the invariant cols
   counts <- t(counts)
-  
   counts <- counts[, apply(counts, 2, var) > 0]
-
   
-  if (just_use_threshold == FALSE) {
-    npcs <- find_npcs(counts)[[1]]
-  } else {
-      #threshold as set by exploratory analysis further down the page
-      npcs <- 265
-    } 
+  npcs <- threshold
   
   cat("Continuing on ", npcs, " PCs. \n")
   
@@ -408,15 +401,7 @@ cluster_scores <- function(clustering, original_counts, true_labels, algorithm) 
 
 ```
 
-cluster separation / principal component breakdown
-second plot either of these
-
 reference to github can go at end of intro or similar
-
-add more datasets
-
-resolution of image for font size
-
 
 %%%%%%%%%%%%%%%%%%%
 % Base Simulation %
@@ -524,6 +509,94 @@ for (i in 1:nrow(metadata)) {
 
 ```
 
+```{r Choose Number of PCs}
+
+# read the file back in and set random seed for reproducibility
+metadata_acs <- fread("D:/AlgorithmComparisonSim/BaseSim/metadata_acs")
+
+metadata_acs <- metadata_acs |> 
+  mutate(
+    ID = as.numeric(ID),
+    proj_name = as.character(proj_name),
+    batchCells = as.numeric(batchCells),
+    de.prob = as.numeric(de.prob),
+    nGenes = as.numeric(nGenes),
+    group.prob = strsplit(group.prob, "\\|") |>
+      lapply(as.numeric)
+  )
+
+set.seed(1618)
+
+# initialise vector
+threshold_values <- matrix(nrow = nrow(metadata_acs), ncol = 1)
+
+for (i in 1:nrow(metadata_acs)) {
+  
+  temp_set <- fread(paste0("D:AlgorithmComparisonSim/BaseSim/", metadata_acs$proj_name[[i]]))
+  
+  value <- choose_pcs(temp_set)$first_past_threshold
+
+  #cat(value, " \n")
+  threshold_values[i] <- value
+  cat(". ")
+}
+
+mean(threshold_values)
+
+```
+So again, we go with 265. 
+we observe a very strange phenomenon whereby 10 PCs is giving us correct K and 5 is not, neither is 100 or more. 
+
+```{r KMeans Cluster and Writeout}
+
+t_0 <- Sys.time()
+
+cat("BEGINNING PCA KMEANS CLUSTERING FULL RUN. \n")
+
+# read the file back in and set random seed for reproducibility
+metadata <- fread("D:/AlgorithmComparisonSim/BaseSim/metadata_acs")
+
+metadata <- metadata |> 
+  mutate(
+    ID = as.numeric(ID),
+    proj_name = as.character(proj_name),
+    batchCells = as.numeric(batchCells),
+    de.prob = as.numeric(de.prob),
+    nGenes = as.numeric(nGenes),
+    group.prob = strsplit(group.prob, "\\|") |>
+      lapply(as.numeric)
+  )
+
+set.seed(1618)
+
+for (i in 1:nrow(metadata)) {
+  
+  temp_set <- fread(paste0(
+    "D:/AlgorithmComparisonSim/BaseSim/", metadata$proj_name[i]
+  ))
+  
+  
+  
+  if (file.exists(
+    paste0("D:/AlgorithmComparisonSim/BaseSim/PK", sprintf("%02d", i))
+  )) { 
+    cat("File ", paste0("D:/AlgorithmComparisonSim/BaseSim/PK", sprintf("%02d", i)), "already exists... \n") 
+  } else {
+    # We do not need to scale the PCA embeddings as they are from a scaled dataset already
+    temp_cluster <- run_PCAkmeans(i, temp_set, threshold = 100, scale = TRUE)
+    fwrite(temp_cluster, paste0("D:/AlgorithmComparisonSim/BaseSim/PK", sprintf("%02d", i)))
+    cat("Written out file from set", i, " ... \n")
+    }
+  
+  cat("FINISHED clustering the ", i, "th one! \n")
+    
+}
+
+t_1 <- Sys.time()
+cat("Took ", t_1 - t_0, "to do all em. \n")
+
+```
+
 ```{r Louvain Cluster and Writeout}
 
 t_0 <- Sys.time()
@@ -587,44 +660,6 @@ for (i in 1:10) {
 
 t_1 <- Sys.time()
 cat("TOTAL TIME FOR ALL 10: ", t_1 - t_0)
-
-```
-
-```{r KMeans Cluster and Writeout}
-
-t_0 <- Sys.time()
-set.seed(1618)
-cat("BEGINNING KMEANS FULL RUN. \n")
-
-for (i in 1:10) {
-  
-  temp_set <- fread(paste0(
-    "D:/AlgorithmComparisonSim/set", sprintf("%02d", i)
-  ))
-  
-  #trying WITHOUT scaling first
-  temp_cluster <- run_PCAkmeans(i, temp_set, just_use_threshold = FALSE, scale = FALSE)
-  
-  if (file.exists(
-    
-    paste0("D:/AlgorithmComparisonSim/PK", sprintf("%02d", i))
-    
-  )) { 
-    cat("File ", paste0("D:/AlgorithmComparisonSim/PK", sprintf("%02d", i)), "already exists... \n") 
-  } else {
-      
-    fwrite(temp_cluster, paste0("D:/AlgorithmComparisonSim/PK", sprintf("%02d", i)))
-    
-    cat("Written out file from set", i, " ... \n")
-    
-    }
-  
-  cat("FINISHED clustering the ", i, "th one! \n")
-    
-}
-
-t_1 <- Sys.time()
-cat("Took ", t_1 - t_0, "to do all 10. \n")
 
 ```
 
@@ -915,13 +950,6 @@ for (i in 1:nrow(metadata_acsSEP)) {
 
 ```{r Choosing a Number of PCs SEP}
 
-temp_set <- fread("D:AlgorithmComparisonSim/SeparationSim/set01SEP")
-
-temp_prcomp <- choose_pcs(temp_set)
-
-temp_prcomp$first_past_threshold
-
-
 # read the file back in and set random seed for reproducibility
 metadata_acsSEP <- fread("D:/AlgorithmComparisonSim/SeparationSim/metadata_acsSEP")
 
@@ -949,7 +977,7 @@ for (i in 1:nrow(metadata_acsSEP)) {
 
   #cat(value, " \n")
   threshold_values[i] <- value
-  
+  cat(".")
 }
 
 mean(threshold_values)
@@ -995,7 +1023,7 @@ for (i in 1:nrow(metadata_acsSEP)) {
     
     t_a <- Sys.time()
     cat("Clustering begins... \n")
-    temp_cluster <- run_PCAkmeans(i, temp_set, just_use_threshold = TRUE, scale = FALSE)
+    temp_cluster <- run_PCAkmeans(i, temp_set, threshold = 265, scale = FALSE)
     cat("Clustering done, writing out... \n")
     fwrite(temp_cluster, paste0("D:/AlgorithmComparisonSim/SeparationSim/PK", metadata_acsSEP$proj_name[i]))
     cat("Written out file from set", i, " ... \n")
