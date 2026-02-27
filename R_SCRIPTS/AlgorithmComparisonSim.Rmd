@@ -984,6 +984,7 @@ mean(threshold_values)
 So we choose 265 PCs for the separation simulation, subject to reduction if this is loads. But this is the average amount that explains 80% variation in our standardised datasets, hence a pretty justified choice i reckon. 
 
 ok just needs left for 20 mins or so.
+we add print statements, then let it run as we write more stuff into the doc
 
 ```{r PK SEP Cluster and Writeout}
 
@@ -1006,28 +1007,33 @@ metadata_acsSEP <- metadata_acsSEP |>
 
 set.seed(1618)
 
-for (i in nrow(metadata_acsSEP)) {
+for (i in 1:nrow(metadata_acsSEP)) {
   
+  cat("Reading in the", i, "th dataset... \n")
   temp_set <- fread(paste0(
     "D:/AlgorithmComparisonSim/SeparationSim/", metadata_acsSEP$proj_name[i]
   ))
   
   if (file.exists(
     
-    paste0("D:/AlgorithmComparisonSim/PK", metadata_acsSEP$proj_name[i])
+    paste0("D:/AlgorithmComparisonSim/SeparationSim/PK", metadata_acsSEP$proj_name[i])
     
   )) { 
-    cat("File ", paste0("D:/AlgorithmComparisonSim/PK", metadata_acsSEP$proj_name[i]), "already exists... \n") 
+    cat("File ", paste0("D:/AlgorithmComparisonSim/SeparationSim/PK", metadata_acsSEP$proj_name[i]), "already exists... \n") 
   } else {
-      
-    temp_cluster <- run_PCAkmeans(i, temp_set, just_use_threshold = TRUE, scale = FALSE)
-    fwrite(temp_cluster, paste0("D:/AlgorithmComparisonSim/PK", metadata_acsSEP$proj_name[i]))
     
+    t_a <- Sys.time()
+    cat("Clustering begins... \n")
+    temp_cluster <- run_PCAkmeans(i, temp_set, just_use_threshold = TRUE, scale = FALSE)
+    cat("Clustering done, writing out... \n")
+    fwrite(temp_cluster, paste0("D:/AlgorithmComparisonSim/SeparationSim/PK", metadata_acsSEP$proj_name[i]))
     cat("Written out file from set", i, " ... \n")
+    t_b <- Sys.time()
+    cat("Took", t_b - t_a, "for the ", i, "th one... \n")
     
     }
   
-  cat("FINISHED clustering the ", i, "th one! \n")
+  cat("FINISHED with the ", i, "th one! \n")
     
 }
 
