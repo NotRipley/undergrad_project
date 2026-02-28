@@ -137,9 +137,9 @@ run_kmeans <- function(set_index, counts, k = NULL) {
 
 
 # Takes a matrix of counts data (transposes it) and then finds a good number of PCs by which to split the data for cluster evaluation. Returns a list of this number and a plot of the variance explained by each PC, so that we can easily compare whether it's doing the right thing. 
-find_npcs <- function(counts) {
+choose_pcs_elbow <- function(dataset) {
   
-  counts <- t(counts)
+  counts <- t(dataset)
   prcobject <- prcomp(counts)
   variances <- prcobject$sdev^2
   n_pcs <- length(variances)
@@ -159,6 +159,7 @@ find_npcs <- function(counts) {
   distances <- abs(a * x + b * y + c) / sqrt(a^2 + b^2)
   
   # The elbow is at the point with maximum distance
+  # this is a pretty heavy assumption
   elbow_idx <- which.max(distances)
   
   elbowplot <- ggplot(mapping = aes(x = x, y = y)) +
@@ -170,9 +171,43 @@ find_npcs <- function(counts) {
               color = "gray50") +
   theme_minimal()
   
-  return(list(elbow_idx, elbowplot))
+  return(list(elbow_idx = elbow_idx,
+              elbowplot = elbowplot))
   
-  cat("END find_npcs function. \n")
+}
+
+#############################################################################
+
+choose_pcs_threshold <- function(dataset) {
+  
+  # transpose then drop zero variance columns from consideration
+  dataset <- t(dataset)
+  dataset <- dataset[, apply(dataset, 2, var) != 0]
+  
+  # Calculate PCA
+  pca_result <- prcomp(dataset, center = TRUE, scale. = TRUE)
+  
+  # Create data frame for plotting
+  var_explained <- data.frame(
+    PC = 1:length(pca_result$sdev),
+    Variance = pca_result$sdev^2 / sum(pca_result$sdev^2),
+    Cumulative = cumsum(pca_result$sdev^2 / sum(pca_result$sdev^2))
+  )
+  
+  # Plot
+  plot <- ggplot(var_explained, aes(x = PC, y = Variance)) +
+    geom_line() +
+    geom_point(size = 2) +
+    labs(x = "Principal Component",
+         y = "Proportion of Variance Explained",
+         title = "PCA Variance Explained") +
+    theme_minimal()
+  
+  first_past_threshold <- var_explained$PC[which(var_explained$Cumulative > 0.8)[1]]
+  
+  return(list(var_explained = var_explained,
+              plot = plot,
+              first_past_threshold = first_past_threshold))
   
 }
 
@@ -279,7 +314,7 @@ run_PCAkmeans <- function(set_index, counts, threshold, k = NULL, scale = FALSE)
 
 # Takes a seurat object post-SCTransform. Runs the Louvain Algorithm native to Seurat, IF we can make sure it's not doing any extra optimisation under the hood. Otherwise, we can pull the count data, make the SNN graph and cluster ourselves.
 
-run_graph_based <- function(set_index, counts, mode) {
+run_graph_based <- function(set_index, counts, mode, npcs) {
   # set_index - the index of the dataset to be used
   # counts - the counts dataset to be used
   # mode - 1 for Louvain, 2 for Leiden
@@ -306,14 +341,6 @@ run_graph_based <- function(set_index, counts, mode) {
   sctobject <- SCTransform(sobject)
   
   sct_scaled <- LayerData(object = sctobject, assay = "SCT", layer = "scale.data")
-  
-  # npcs <- find_npcs(sct_scaled)[[1]]
-  
-  pca_call <- prcomp(sct_scaled, center = TRUE, scale. = FALSE)
-  var_explained <- pca_call$sdev^2 / sum(pca_call$sdev^2)
-  cumulative_var <- cumsum(var_explained)
-
-  npcs <- which(cumulative_var >= 0.8)[1]
 
   cat("Continuing Louvain on ", npcs, " PCs... \n")
   
@@ -326,47 +353,11 @@ run_graph_based <- function(set_index, counts, mode) {
   
   clustering <- data.frame(cell = names(sctobject$seurat_clusters), cluster = as.character(sctobject$seurat_clusters))
   
-  cat("END run_louvain function. \n")
+  cat("END run_graph_based function. \n")
   
   return(clustering)
   
 }
-
-#############################################################################
-
-choose_pcs <- function(dataset) {
-  
-  # transpose then drop zero variance columns from consideration
-  dataset <- t(dataset)
-  dataset <- dataset[, apply(dataset, 2, var) != 0]
-  
-  # Calculate PCA
-  pca_result <- prcomp(dataset, center = TRUE, scale. = TRUE)
-  
-  # Create data frame for plotting
-  var_explained <- data.frame(
-    PC = 1:length(pca_result$sdev),
-    Variance = pca_result$sdev^2 / sum(pca_result$sdev^2),
-    Cumulative = cumsum(pca_result$sdev^2 / sum(pca_result$sdev^2))
-  )
-  
-  # Plot
-  plot <- ggplot(var_explained, aes(x = PC, y = Variance)) +
-    geom_line() +
-    geom_point(size = 2) +
-    labs(x = "Principal Component",
-         y = "Proportion of Variance Explained",
-         title = "PCA Variance Explained") +
-    theme_minimal()
-  
-  first_past_threshold <- var_explained$PC[which(var_explained$Cumulative > 0.8)[1]]
-  
-  return(list(var_explained = var_explained,
-              plot = plot,
-              first_past_threshold = first_past_threshold))
-  
-}
-
 
 ###############################################################################
 
@@ -534,18 +525,17 @@ for (i in 1:nrow(metadata_acs)) {
   
   temp_set <- fread(paste0("D:AlgorithmComparisonSim/BaseSim/", metadata_acs$proj_name[[i]]))
   
-  value <- choose_pcs(temp_set)$first_past_threshold
+  value <- choose_pcs_elbow(temp_set)$elbow_idx
 
   #cat(value, " \n")
   threshold_values[i] <- value
-  cat(". ")
+  cat(".")
 }
 
 mean(threshold_values)
 
 ```
-So again, we go with 265. 
-we observe a very strange phenomenon whereby 10 PCs is giving us correct K and 5 is not, neither is 100 or more. 
+We go with 10, as with our elbow method we can justify it and it seems to be giving the correct cluster numbers. Great!
 
 ```{r KMeans Cluster and Writeout}
 
@@ -582,13 +572,15 @@ for (i in 1:nrow(metadata)) {
   )) { 
     cat("File ", paste0("D:/AlgorithmComparisonSim/BaseSim/PK", sprintf("%02d", i)), "already exists... \n") 
   } else {
-    # We do not need to scale the PCA embeddings as they are from a scaled dataset already
-    temp_cluster <- run_PCAkmeans(i, temp_set, threshold = 100, scale = TRUE)
+    time_a <- Sys.time()
+    # We scale the PC embeddings because it magically works, yay!
+    cat("Clustering the", i, "th set... \n")
+    temp_cluster <- run_PCAkmeans(i, temp_set, threshold = 10, scale = TRUE)
+    cat("Writing out the", i, "th set... \n")
     fwrite(temp_cluster, paste0("D:/AlgorithmComparisonSim/BaseSim/PK", sprintf("%02d", i)))
-    cat("Written out file from set", i, " ... \n")
+    time_b <- Sys.time()
+    cat("Written out file from set", i, " and took ", time_b - time_a, "to do that set in total ... \n")
     }
-  
-  cat("FINISHED clustering the ", i, "th one! \n")
     
 }
 
@@ -596,31 +588,46 @@ t_1 <- Sys.time()
 cat("Took ", t_1 - t_0, "to do all em. \n")
 
 ```
+Done!
 
 ```{r Louvain Cluster and Writeout}
 
 t_0 <- Sys.time()
+
+cat("BEGINNING LOUVAIN CLUSTERING FULL RUN. \n")
+
+# read the file back in and set random seed for reproducibility
+metadata <- fread("D:/AlgorithmComparisonSim/BaseSim/metadata_acs")
+
+metadata <- metadata |> 
+  mutate(
+    ID = as.numeric(ID),
+    proj_name = as.character(proj_name),
+    batchCells = as.numeric(batchCells),
+    de.prob = as.numeric(de.prob),
+    nGenes = as.numeric(nGenes),
+    group.prob = strsplit(group.prob, "\\|") |>
+      lapply(as.numeric)
+  )
+
 set.seed(1618)
-cat("BEGINNING LOUVAIN FULL RUN. \n")
 
-for (i in 1:10) {
+for (i in 1:nrow(metadata_acs)) {
   
-  temp_set <- fread(paste0("D:/AlgorithmComparisonSim/set", sprintf("%02d", i)))
-
-  temp_cluster <- run_graph_based(i, temp_set, mode = "Louvain")
+  temp_set <- fread(paste0("D:/AlgorithmComparisonSim/BaseSim/", metadata_acs$proj_name[i]))
   
   if (file.exists(
-    
-    paste0("D:/AlgorithmComparisonSim/LV", sprintf("%02d", i))
-    
+    paste0("D:/AlgorithmComparisonSim/BaseSim/LV", sprintf("%02d", i))
   )) { 
-    cat("File ", paste0("D:/AlgorithmComparisonSim/LV", sprintf("%02d", i)), "already exists... \n") 
+    cat("File ", paste0("D:/AlgorithmComparisonSim/BaseSim/LV", sprintf("%02d", i)), "already exists... \n") 
   } else {
-      
-    fwrite(temp_cluster, paste0("D:/AlgorithmComparisonSim/LV", sprintf("%02d", i)))
-    
-    cat("Written out file from set", i, " ... \n")
-    
+    time_a <- Sys.time()
+    cat("Clustering... \n")
+    temp_cluster <- run_graph_based(i, temp_set, mode = "Louvain", npcs = 10)
+    cat("Writing.. \n")
+    fwrite(temp_cluster, paste0("D:/AlgorithmComparisonSim/BaseSim/LV", sprintf("%02d", i)))
+    time_b <- Sys.time()
+    cat("Written out file from set", i, "and took", time_b - time_a, "to do that... \n")
     }
 
 }
@@ -629,31 +636,46 @@ t_1 <- Sys.time()
 cat("TOTAL TIME FOR ALL 10: ", t_1 - t_0)
 
 ```
+Done!
 
 ```{r Leiden Cluster and Writeout}
 
 t_0 <- Sys.time()
+
+cat("BEGINNING LEIDEN CLUSTERING FULL RUN. \n")
+
+# read the file back in and set random seed for reproducibility
+metadata <- fread("D:/AlgorithmComparisonSim/BaseSim/metadata_acs")
+
+metadata <- metadata |> 
+  mutate(
+    ID = as.numeric(ID),
+    proj_name = as.character(proj_name),
+    batchCells = as.numeric(batchCells),
+    de.prob = as.numeric(de.prob),
+    nGenes = as.numeric(nGenes),
+    group.prob = strsplit(group.prob, "\\|") |>
+      lapply(as.numeric)
+  )
+
 set.seed(1618)
-cat("BEGINNING LEIDEN FULL RUN. \n")
 
-for (i in 1:10) {
+for (i in 1:nrow(metadata_acs)) {
   
-  temp_set <- fread(paste0("D:/AlgorithmComparisonSim/set", sprintf("%02d", i)))
-
-  temp_cluster <- run_graph_based(i, temp_set, mode = "Leiden")
+  temp_set <- fread(paste0("D:/AlgorithmComparisonSim/BaseSim/", metadata_acs$proj_name[i]))
   
   if (file.exists(
-    
-    paste0("D:/AlgorithmComparisonSim/LD", sprintf("%02d", i))
-    
+    paste0("D:/AlgorithmComparisonSim/BaseSim/LD", sprintf("%02d", i))
   )) { 
-    cat("File ", paste0("D:/AlgorithmComparisonSim/LD", sprintf("%02d", i)), "already exists... \n") 
+    cat("File ", paste0("D:/AlgorithmComparisonSim/BaseSim/LD", sprintf("%02d", i)), "already exists... \n") 
   } else {
-      
-    fwrite(temp_cluster, paste0("D:/AlgorithmComparisonSim/LD", sprintf("%02d", i)))
-    
-    cat("Written out file from set", i, " ... \n")
-    
+    time_a <- Sys.time()
+    cat("Clustering... \n")
+    temp_cluster <- run_graph_based(i, temp_set, mode = "Leiden", npcs = 10)
+    cat("Writing.. \n")
+    fwrite(temp_cluster, paste0("D:/AlgorithmComparisonSim/BaseSim/LD", sprintf("%02d", i)))
+    time_b <- Sys.time()
+    cat("Written out file from set", i, "and took", time_b - time_a, "to do that... \n")
     }
 
 }
@@ -662,11 +684,28 @@ t_1 <- Sys.time()
 cat("TOTAL TIME FOR ALL 10: ", t_1 - t_0)
 
 ```
+Done!
 
 ```{r PK Scores Writeout}
 
 t_0 <- Sys.time()
 cat("BEGINNING PK SCORES WRITEOUT... \n")
+
+# read the file back in and set random seed for reproducibility
+metadata <- fread("D:/AlgorithmComparisonSim/BaseSim/metadata_acs")
+
+metadata <- metadata |> 
+  mutate(
+    ID = as.numeric(ID),
+    proj_name = as.character(proj_name),
+    batchCells = as.numeric(batchCells),
+    de.prob = as.numeric(de.prob),
+    nGenes = as.numeric(nGenes),
+    group.prob = strsplit(group.prob, "\\|") |>
+      lapply(as.numeric)
+  )
+
+set.seed(1618)
 
 PK_allscores <- tibble(
   algorithm = character(),
@@ -676,11 +715,14 @@ PK_allscores <- tibble(
   adjusted_rand_index = numeric()
 )
 
-for (i in 1:10) {
+for (i in 1:nrow(metadata)) {
   
-  temp_cluster <- fread(paste0("D:/AlgorithmComparisonSim/PK", sprintf("%02d", i)))[["cluster"]]
-  temp_set <- t(fread(paste0("D:/AlgorithmComparisonSim/set", sprintf("%02d", i))))
-  temp_true <- fread(paste0("D:/AlgorithmComparisonSim/set", sprintf("%02d", i), "true_labels"))[["true_group"]]
+  temp_cluster <- fread(paste0("D:/AlgorithmComparisonSim/BaseSim/PK", sprintf("%02d", i)))[["cluster"]]
+  temp_set <- t(fread(paste0("D:/AlgorithmComparisonSim/BaseSim/set", sprintf("%02d", i))))
+  temp_true <- fread(paste0("D:/AlgorithmComparisonSim/BaseSim/set", sprintf("%02d", i), "true_labels"))[["true_group"]]
+  
+  t_a <- Sys.time()
+  cat("Scoring the ", i, "th one... \n")
   
   temp_score <- cluster_scores(algorithm = "PCAKMeans",
     clustering = temp_cluster,
@@ -689,25 +731,44 @@ for (i in 1:10) {
   
   PK_allscores <- add_row(PK_allscores, temp_score)
   cat("added", i, "one to PK_allscores... \n")
+  t_b <- Sys.time()
+  cat(t_b - t_a, "to do the ", i, "loop... \n")
   
 }
 
 t_1 <- Sys.time()
 cat("TOOK", t_1 - t_0, "TO DO ALL 10... \n")
 
-if (file.exists("D:/AlgorithmComparisonSim/Scores/PK_allscores")) {
+if (file.exists("D:/AlgorithmComparisonSim/BaseSim/PK_allscores")) {
   cat("Scores for PK already exist... \n")
 } else {
-  fwrite(PK_allscores, "D:/AlgorithmComparisonSim/Scores/PK_allscores")
+  fwrite(PK_allscores, "D:/AlgorithmComparisonSim/BaseSim/PK_allscores")
   cat("Written out PK scores... \n")
 }
 
 ```
+Done!
 
 ```{r LV Scores Writeout}
 
 t_0 <- Sys.time()
 cat("BEGINNING LV SCORES WRITEOUT... \n")
+
+# read the file back in and set random seed for reproducibility
+metadata <- fread("D:/AlgorithmComparisonSim/BaseSim/metadata_acs")
+
+metadata <- metadata |> 
+  mutate(
+    ID = as.numeric(ID),
+    proj_name = as.character(proj_name),
+    batchCells = as.numeric(batchCells),
+    de.prob = as.numeric(de.prob),
+    nGenes = as.numeric(nGenes),
+    group.prob = strsplit(group.prob, "\\|") |>
+      lapply(as.numeric)
+  )
+
+set.seed(1618)
 
 LV_allscores <- tibble(
   algorithm = character(),
@@ -717,36 +778,34 @@ LV_allscores <- tibble(
   adjusted_rand_index = numeric()
 )
 
-for (i in 1:10) {
+for (i in 1:nrow(metadata)) {
   
-  temp_cluster <- fread(paste0("D:/AlgorithmComparisonSim/LV", sprintf("%02d", i)))[["cluster"]]
-  temp_set <- t(fread(paste0("D:/AlgorithmComparisonSim/set", sprintf("%02d", i))))
-  temp_true <- fread(paste0("D:/AlgorithmComparisonSim/set", sprintf("%02d", i), "true_labels"))[["true_group"]]
+  temp_cluster <- fread(paste0("D:/AlgorithmComparisonSim/BaseSim/LV", sprintf("%02d", i)))[["cluster"]]
+  temp_set <- t(fread(paste0("D:/AlgorithmComparisonSim/BaseSim/set", sprintf("%02d", i))))
+  temp_true <- fread(paste0("D:/AlgorithmComparisonSim/BaseSim/set", sprintf("%02d", i), "true_labels"))[["true_group"]]
   
-  temp_score <- cluster_scores(algorithm = "Louvain",
+  t_a <- Sys.time()
+  cat("Scoring the ", i, "th one... \n")
+  
+  temp_score <- cluster_scores(algorithm = "PCAKMeans",
     clustering = temp_cluster,
     original_counts = temp_set,
     true_labels = temp_true)
   
   LV_allscores <- add_row(LV_allscores, temp_score)
   cat("added", i, "one to LV_allscores... \n")
-  
-  # if (file.exists(paste0("D:/AlgorithmComparisonSim/Scores/LV", sprintf("%02d", i), "scores"))) {
-  #   cat("File for ", i, "already exists... \n")
-  # } else {
-  #   fwrite(temp_score, paste0("D:/AlgorithmComparisonSim/Scores/LV", sprintf("%02d", i), "scores"))
-  #   cat("Written out the one for ", i, "... \n")
-  # }
+  t_b <- Sys.time()
+  cat(t_b - t_a, "to do the ", i, "loop... \n")
   
 }
 
 t_1 <- Sys.time()
 cat("TOOK", t_1 - t_0, "TO DO ALL 10... \n")
 
-if (file.exists("D:/AlgorithmComparisonSim/Scores/LV_allscores")) {
+if (file.exists("D:/AlgorithmComparisonSim/BaseSim/LV_allscores")) {
   cat("Scores for LV already exist... \n")
 } else {
-  fwrite(LV_allscores, "D:/AlgorithmComparisonSim/Scores/LV_allscores")
+  fwrite(LV_allscores, "D:/AlgorithmComparisonSim/BaseSim/LV_allscores")
   cat("Written out LV scores... \n")
 }
 
@@ -973,7 +1032,7 @@ for (i in 1:nrow(metadata_acsSEP)) {
   
   temp_set <- fread(paste0("D:AlgorithmComparisonSim/SeparationSim/", metadata_acsSEP$proj_name[[i]]))
   
-  value <- choose_pcs(temp_set)$first_past_threshold
+  value <- choose_pcs_elbow(temp_set)$elbow_idx
 
   #cat(value, " \n")
   threshold_values[i] <- value
@@ -984,6 +1043,7 @@ mean(threshold_values)
 
 
 ```
+Having chosen via an elbow method, we obtain an average of just above 7. Hence we continue on 10. BUT so far 20 have been generated with 265. So maybe worth continuing on that, though we know the choice of K is erroring.
 
 ```{r PK SEP Cluster and Writeout}
 
