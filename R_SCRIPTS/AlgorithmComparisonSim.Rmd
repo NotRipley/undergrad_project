@@ -812,6 +812,7 @@ if (file.exists("D:/AlgorithmComparisonSim/BaseSim/LV_allscores")) {
 
 
 ```
+Done!
 
 ```{r LD Scores Writeout}
 
