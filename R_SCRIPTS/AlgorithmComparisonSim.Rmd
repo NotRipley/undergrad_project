@@ -1118,12 +1118,103 @@ Done!
 
 ```{r LV SEP Cluster and Writeout}
 
+t_0 <- Sys.time()
+cat("BEGINNING LV SEP CLUSTER and WRITEOUT FULL RUN. \n")
+
+# read the file back in and set random seed for reproducibility
+metadata_acsSEP <- fread("D:/AlgorithmComparisonSim/SeparationSim/metadata_acsSEP")
+
+metadata_acsSEP <- metadata_acsSEP |> 
+  mutate(
+    ID = as.numeric(ID),
+    proj_name = as.character(proj_name),
+    batchCells = as.numeric(batchCells),
+    de.prob = as.numeric(de.prob),
+    nGenes = as.numeric(nGenes),
+    group.prob = strsplit(group.prob, "\\|") |>
+      lapply(as.numeric)
+  )
+
+set.seed(1618)
+
+for (i in 1:nrow(metadata_acsSEP)) {
+  cat("Reading in the", i, "th dataset... \n")
+  temp_set <- fread(paste0(
+    "D:/AlgorithmComparisonSim/SeparationSim/", metadata_acsSEP$proj_name[i]
+  ))
+  if (file.exists(
+    paste0("D:/AlgorithmComparisonSim/SeparationSim/LV", sprintf("%02d", i), "SEP")
+  )) { 
+    cat("File ", paste0("D:/AlgorithmComparisonSim/SeparationSim/LV", sprintf("%02d", i), "SEP"), "already exists... \n") 
+  } else {
+    t_a <- Sys.time()
+    cat("Clustering begins... \n")
+    temp_cluster <- run_graph_based(i, temp_set, mode = "Louvain", npcs = 10)
+    cat("Clustering done, writing out... \n")
+    fwrite(temp_cluster, paste0("D:/AlgorithmComparisonSim/SeparationSim/LV", sprintf("%02d", i), "SEP"))
+    cat("Written out file from set", i, " ... \n")
+    t_b <- Sys.time()
+    cat("Took", t_b - t_a, "for the ", i, "th one... \n")
+    
+    }
+    
+}
+
+t_1 <- Sys.time()
+cat("Took ", t_1 - t_0, "to do all 10. \n")
 
 ```
+Done!
 
 ```{r LD SEP Cluster and Writeout}
 
+t_0 <- Sys.time()
+cat("BEGINNING PK SEP CLUSTER and WRITEOUT FULL RUN. \n")
 
+# read the file back in and set random seed for reproducibility
+metadata_acsSEP <- fread("D:/AlgorithmComparisonSim/SeparationSim/metadata_acsSEP")
+
+metadata_acsSEP <- metadata_acsSEP |> 
+  mutate(
+    ID = as.numeric(ID),
+    proj_name = as.character(proj_name),
+    batchCells = as.numeric(batchCells),
+    de.prob = as.numeric(de.prob),
+    nGenes = as.numeric(nGenes),
+    group.prob = strsplit(group.prob, "\\|") |>
+      lapply(as.numeric)
+  )
+
+set.seed(1618)
+
+for (i in 1:nrow(metadata_acsSEP)) {
+  cat("Reading in the", i, "th dataset... \n")
+  temp_set <- fread(paste0(
+    "D:/AlgorithmComparisonSim/SeparationSim/", metadata_acsSEP$proj_name[i]
+  ))
+  if (file.exists(
+    paste0("D:/AlgorithmComparisonSim/SeparationSim/PK", sprintf("%02d", i), "SEP")
+  )) { 
+    cat("File ", paste0("D:/AlgorithmComparisonSim/SeparationSim/PK", sprintf("%02d", i), "SEP"), "already exists... \n") 
+  } else {
+    t_a <- Sys.time()
+    cat("Clustering begins... \n")
+    # DO scale our embeddings
+    temp_cluster <- run_PCAkmeans(i, temp_set, threshold = 10, scale = TRUE)
+    cat("Clustering done, writing out... \n")
+    fwrite(temp_cluster, paste0("D:/AlgorithmComparisonSim/SeparationSim/PK", sprintf("%02d", i), "SEP"))
+    cat("Written out file from set", i, " ... \n")
+    t_b <- Sys.time()
+    cat("Took", t_b - t_a, "for the ", i, "th one... \n")
+    
+    }
+  
+  cat("FINISHED with the ", i, "th one! \n")
+    
+}
+
+t_1 <- Sys.time()
+cat("Took ", t_1 - t_0, "to do all 10. \n")
 
 ```
 
