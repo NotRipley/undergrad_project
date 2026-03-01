@@ -956,6 +956,7 @@ if (file.exists(file = "D:/AlgorithmComparisonSim/SeparationSim/metadata_acsSEP"
 }
 
 ```
+Done!
 
 ```{r Generate Datasets SEP}
 
@@ -1022,6 +1023,7 @@ for (i in 1:nrow(metadata_acsSEP)) {
 
 
 ```
+Done!
 
 ```{r Choosing a Number of PCs SEP}
 
@@ -1059,7 +1061,7 @@ mean(threshold_values)
 
 
 ```
-Having chosen via an elbow method, we obtain an average of just above 7. Hence we continue on 10. BUT so far 20 have been generated with 265. So maybe worth continuing on that, though we know the choice of K is erroring.
+Having chosen via an elbow method, we obtain an average of just above 7. Hence we continue on 10.
 
 ```{r PK SEP Cluster and Writeout}
 
@@ -1083,25 +1085,21 @@ metadata_acsSEP <- metadata_acsSEP |>
 set.seed(1618)
 
 for (i in 1:nrow(metadata_acsSEP)) {
-  
   cat("Reading in the", i, "th dataset... \n")
   temp_set <- fread(paste0(
     "D:/AlgorithmComparisonSim/SeparationSim/", metadata_acsSEP$proj_name[i]
   ))
-  
   if (file.exists(
-    
-    paste0("D:/AlgorithmComparisonSim/SeparationSim/PK", metadata_acsSEP$proj_name[i])
-    
+    paste0("D:/AlgorithmComparisonSim/SeparationSim/PK", sprintf("%02d", i), "SEP")
   )) { 
-    cat("File ", paste0("D:/AlgorithmComparisonSim/SeparationSim/PK", metadata_acsSEP$proj_name[i]), "already exists... \n") 
+    cat("File ", paste0("D:/AlgorithmComparisonSim/SeparationSim/PK", sprintf("%02d", i), "SEP"), "already exists... \n") 
   } else {
-    
     t_a <- Sys.time()
     cat("Clustering begins... \n")
-    temp_cluster <- run_PCAkmeans(i, temp_set, threshold = 265, scale = FALSE)
+    # DO scale our embeddings
+    temp_cluster <- run_PCAkmeans(i, temp_set, threshold = 10, scale = TRUE)
     cat("Clustering done, writing out... \n")
-    fwrite(temp_cluster, paste0("D:/AlgorithmComparisonSim/SeparationSim/PK", metadata_acsSEP$proj_name[i]))
+    fwrite(temp_cluster, paste0("D:/AlgorithmComparisonSim/SeparationSim/PK", sprintf("%02d", i), "SEP"))
     cat("Written out file from set", i, " ... \n")
     t_b <- Sys.time()
     cat("Took", t_b - t_a, "for the ", i, "th one... \n")
@@ -1116,6 +1114,7 @@ t_1 <- Sys.time()
 cat("Took ", t_1 - t_0, "to do all 10. \n")
 
 ```
+Done!
 
 ```{r LV SEP Cluster and Writeout}
 
