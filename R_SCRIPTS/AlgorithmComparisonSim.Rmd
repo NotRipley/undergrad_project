@@ -812,7 +812,7 @@ if (file.exists("D:/AlgorithmComparisonSim/BaseSim/LV_allscores")) {
 
 
 ```
-
+Done!
 
 ```{r LD Scores Writeout}
 
@@ -857,8 +857,8 @@ for (i in 1:nrow(metadata)) {
     original_counts = temp_set,
     true_labels = temp_true)
   
-  LV_allscores <- add_row(LV_allscores, temp_score)
-  cat("added", i, "one to LV_allscores... \n")
+  LD_allscores <- add_row(LD_allscores, temp_score)
+  cat("added", i, "one to LD_allscores... \n")
   t_b <- Sys.time()
   cat(t_b - t_a, "to do the ", i, "loop... \n")
   
@@ -867,20 +867,21 @@ for (i in 1:nrow(metadata)) {
 t_1 <- Sys.time()
 cat("TOOK", t_1 - t_0, "TO DO ALL 10... \n")
 
-if (file.exists("D:/AlgorithmComparisonSim/BaseSim/LV_allscores")) {
-  cat("Scores for LV already exist... \n")
+if (file.exists("D:/AlgorithmComparisonSim/BaseSim/LD_allscores")) {
+  cat("Scores for LD already exist... \n")
 } else {
-  fwrite(LV_allscores, "D:/AlgorithmComparisonSim/BaseSim/LV_allscores")
-  cat("Written out LV scores... \n")
+  fwrite(LD_allscores, "D:/AlgorithmComparisonSim/BaseSim/LD_allscores")
+  cat("Written out LD scores... \n")
 }
 
 ```
+Done!
 
 ```{r Comparison Plot}
 
-LV_allscores <- fread("D:/AlgorithmComparisonSim/Scores/LV_allscores")
-LD_allscores <- fread("D:/AlgorithmComparisonSim/Scores/LD_allscores")
-PK_allscores <- fread("D:/AlgorithmComparisonSim/Scores/PK_allscores")
+LV_allscores <- fread("D:/AlgorithmComparisonSim/BaseSim/LV_allscores")
+LD_allscores <- fread("D:/AlgorithmComparisonSim/BaseSim/LD_allscores")
+PK_allscores <- fread("D:/AlgorithmComparisonSim/BaseSim/PK_allscores")
 
 
 combined_scores <- bind_rows(LV_allscores, LD_allscores, PK_allscores)
@@ -896,7 +897,7 @@ combined_scores_long <- combined_scores %>%
 
 # Create faceted violin plots
 plot1 <- ggplot(combined_scores_long, aes(x = algorithm, y = value, fill = algorithm)) +
-  geom_violin(trim = FALSE) +
+  geom_boxplot() +
   geom_jitter(width = 0.1, alpha = 0.5, size = 2) +
   facet_wrap(~ metric, scales = "free_y", ncol = 2) +  
   theme_bw() +
@@ -913,11 +914,11 @@ plot1 <- ggplot(combined_scores_long, aes(x = algorithm, y = value, fill = algor
 
 plot1 
 
-ggsave("C:/Users/fmhfl/Desktop/Undergrad Project/undergrad_project/OUTPUTS/metrics_by_algorithm.png", 
-       plot = plot1, 
-       width = 10, 
-       height = 8, 
-       dpi = 300)
+# ggsave("C:/Users/fmhfl/Desktop/Undergrad Project/undergrad_project/OUTPUTS/metrics_by_algorithm.png", 
+#        plot = plot1, 
+#        width = 10, 
+#        height = 8, 
+#        dpi = 300)
 
 ```
 
