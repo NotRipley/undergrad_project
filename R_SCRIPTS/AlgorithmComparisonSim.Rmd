@@ -342,7 +342,7 @@ run_graph_based <- function(set_index, counts, mode, npcs) {
   
   sct_scaled <- LayerData(object = sctobject, assay = "SCT", layer = "scale.data")
 
-  cat("Continuing Louvain on ", npcs, " PCs... \n")
+  cat("Continuing", mode, " on ", npcs, " PCs... \n")
   
   sctobject <- sctobject |> 
     RunPCA(npcs = npcs) |> 
@@ -921,6 +921,7 @@ plot1
 #        dpi = 300)
 
 ```
+Done!
 
 %%%%%%%%%%%%%%%%%%%%%%%%%
 % Separation Simulation %
@@ -1169,7 +1170,7 @@ Done!
 ```{r LD SEP Cluster and Writeout}
 
 t_0 <- Sys.time()
-cat("BEGINNING PK SEP CLUSTER and WRITEOUT FULL RUN. \n")
+cat("BEGINNING LD SEP CLUSTER and WRITEOUT FULL RUN. \n")
 
 # read the file back in and set random seed for reproducibility
 metadata_acsSEP <- fread("D:/AlgorithmComparisonSim/SeparationSim/metadata_acsSEP")
@@ -1193,28 +1194,146 @@ for (i in 1:nrow(metadata_acsSEP)) {
     "D:/AlgorithmComparisonSim/SeparationSim/", metadata_acsSEP$proj_name[i]
   ))
   if (file.exists(
-    paste0("D:/AlgorithmComparisonSim/SeparationSim/PK", sprintf("%02d", i), "SEP")
+    paste0("D:/AlgorithmComparisonSim/SeparationSim/LD", sprintf("%02d", i), "SEP")
   )) { 
-    cat("File ", paste0("D:/AlgorithmComparisonSim/SeparationSim/PK", sprintf("%02d", i), "SEP"), "already exists... \n") 
+    cat("File ", paste0("D:/AlgorithmComparisonSim/SeparationSim/LD", sprintf("%02d", i), "SEP"), "already exists... \n") 
   } else {
     t_a <- Sys.time()
     cat("Clustering begins... \n")
     # DO scale our embeddings
-    temp_cluster <- run_PCAkmeans(i, temp_set, threshold = 10, scale = TRUE)
+    temp_cluster <- run_graph_based(i, temp_set, mode = "Leiden", npcs = 10)
     cat("Clustering done, writing out... \n")
-    fwrite(temp_cluster, paste0("D:/AlgorithmComparisonSim/SeparationSim/PK", sprintf("%02d", i), "SEP"))
+    fwrite(temp_cluster, paste0("D:/AlgorithmComparisonSim/SeparationSim/LD", sprintf("%02d", i), "SEP"))
     cat("Written out file from set", i, " ... \n")
     t_b <- Sys.time()
     cat("Took", t_b - t_a, "for the ", i, "th one... \n")
     
     }
-  
-  cat("FINISHED with the ", i, "th one! \n")
     
 }
 
 t_1 <- Sys.time()
 cat("Took ", t_1 - t_0, "to do all 10. \n")
+
+```
+Done!
+
+```{r PK SEP Scores Writeout}
+
+t_0 <- Sys.time()
+cat("BEGINNING PK SEP SCORES WRITEOUT FULL RUN. \n")
+
+# read the file back in and set random seed for reproducibility
+metadata_acsSEP <- fread("D:/AlgorithmComparisonSim/SeparationSim/metadata_acsSEP")
+
+metadata_acsSEP <- metadata_acsSEP |> 
+  mutate(
+    ID = as.numeric(ID),
+    proj_name = as.character(proj_name),
+    batchCells = as.numeric(batchCells),
+    de.prob = as.numeric(de.prob),
+    nGenes = as.numeric(nGenes),
+    group.prob = strsplit(group.prob, "\\|") |>
+      lapply(as.numeric)
+  )
+
+set.seed(1618)
+
+PK_SEP_allscores <- tibble(
+  algorithm = character(),
+  avg_silhouette = numeric(),
+  calinski_harabasz = numeric(),
+  davies_bouldin = numeric(),
+  adjusted_rand_index = numeric()
+)
+
+for (i in 1:nrow(metadata_acsSEP)) {
+  
+  temp_cluster <- fread(paste0("D:/AlgorithmComparisonSim/SeparationSim/PK", sprintf("%02d", i), "SEP"))[["cluster"]]
+  temp_set <- t(fread(paste0("D:/AlgorithmComparisonSim/SeparationSim/set", sprintf("%02d", i), "SEP")))
+  temp_true <- fread(paste0("D:/AlgorithmComparisonSim/SeparationSim/set", sprintf("%02d", i), "SEPtrue_labels"))[["true_group"]]
+  
+  t_a <- Sys.time()
+  cat("Scoring the ", i, "th one... \n")
+  
+  temp_score <- cluster_scores(algorithm = "PCAKMeans",
+    clustering = temp_cluster,
+    original_counts = temp_set,
+    true_labels = temp_true)
+  
+  PK_SEP_allscores <- add_row(PK_SEP_allscores, temp_score)
+  cat("added", i, "one to PK_SEP_allscores... \n")
+  t_b <- Sys.time()
+  cat(t_b - t_a, "to do the ", i, "loop... \n")
+  
+}
+
+t_1 <- Sys.time()
+cat("TOOK", t_1 - t_0, "TO DO ALL 10... \n")
+
+if (file.exists("D:/AlgorithmComparisonSim/SeparationSim/PK_SEP_allscores")) {
+  cat("Scores for PK SEP already exist... \n")
+} else {
+  fwrite(PK_SEP_allscores, "D:/AlgorithmComparisonSim/SeparationSim/PK_SEP_allscores")
+  cat("Written out PK SEP scores... \n")
+}
+
+```
+
+
+```{r LV SEP Scores Writeout}
+
+
+
+```
+
+```{r LD SEP Scores Writeout}
+
+
+
+```
+
+```{r Comparison Plot SEP}
+
+LV_SEP_allscores <- fread("D:/AlgorithmComparisonSim/BaseSim/LV_allscores")
+LD_SEP_allscores <- fread("D:/AlgorithmComparisonSim/BaseSim/LD_allscores")
+PK_SEP_allscores <- fread("D:/AlgorithmComparisonSim/BaseSim/PK_allscores")
+
+
+combined_scores <- bind_rows(LV_SEP_allscores, LD_SEP_allscores, PK_SEP_allscores)
+
+# Reshape data from wide to long format
+combined_scores_long <- combined_scores %>%
+  pivot_longer(
+    cols = c(avg_silhouette, calinski_harabasz, davies_bouldin, adjusted_rand_index),
+    names_to = "metric",
+    values_to = "value"
+  )
+
+# Create faceted violin plots
+plot1 <- ggplot(combined_scores_long, aes(x = algorithm, y = value, fill = algorithm)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.1, alpha = 0.5, size = 2) +
+  facet_wrap(~ metric, scales = "free_y", ncol = 2) +  
+  theme_bw() +
+  labs(
+    title = "Clustering Performance Metrics by Algorithm",
+    x = "Algorithm",
+    y = "Score"
+  ) +
+  theme(
+    strip.text = element_text(size = 11, face = "bold"),
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  ) +
+  scale_fill_brewer(palette = "Set1")  
+
+plot1 
+
+# ggsave("C:/Users/fmhfl/Desktop/Undergrad Project/undergrad_project/OUTPUTS/metrics_by_algorithm.png", 
+#        plot = plot1, 
+#        width = 10, 
+#        height = 8, 
+#        dpi = 300)
 
 ```
 
