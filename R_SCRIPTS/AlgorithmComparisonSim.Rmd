@@ -1112,7 +1112,7 @@ for (i in 1:nrow(metadata_acsSEP)) {
 }
 
 t_1 <- Sys.time()
-cat("Took ", t_1 - t_0, "to do all 10. \n")
+cat("Took ", t_1 - t_0, "to do all 60. \n")
 
 ```
 Done!
@@ -1409,9 +1409,9 @@ Done!
 
 ```{r Comparison Plot SEP}
 
-LV_SEP_allscores <- fread("D:/AlgorithmComparisonSim/BaseSim/LV_allscores")
-LD_SEP_allscores <- fread("D:/AlgorithmComparisonSim/BaseSim/LD_allscores")
-PK_SEP_allscores <- fread("D:/AlgorithmComparisonSim/BaseSim/PK_allscores")
+LV_SEP_allscores <- fread("D:/AlgorithmComparisonSim/SeparationSim/LV_SEP_allscores")
+LD_SEP_allscores <- fread("D:/AlgorithmComparisonSim/SeparationSim/LD_SEP_allscores")
+PK_SEP_allscores <- fread("D:/AlgorithmComparisonSim/SeparationSim/PK_SEP_allscores")
 
 
 combined_scores <- bind_rows(LV_SEP_allscores, LD_SEP_allscores, PK_SEP_allscores)
@@ -1451,25 +1451,86 @@ plot1
 
 ```
 
+```{r Separation Plot SEP}
+
+metadata_acsSEP <- fread("D:/AlgorithmComparisonSim/SeparationSim/metadata_acsSEP")
+
+metadata_acsSEP <- metadata_acsSEP |> 
+  mutate(
+    ID = as.numeric(ID),
+    proj_name = as.character(proj_name),
+    batchCells = as.numeric(batchCells),
+    de.prob = as.numeric(de.prob),
+    nGenes = as.numeric(nGenes),
+    group.prob = strsplit(group.prob, "\\|") |>
+      lapply(as.numeric)
+  )
+
+set.seed(1618)
+
+LV_SEP_allscores <- fread("D:/AlgorithmComparisonSim/SeparationSim/LV_SEP_allscores")
+LD_SEP_allscores <- fread("D:/AlgorithmComparisonSim/SeparationSim/LD_SEP_allscores")
+PK_SEP_allscores <- fread("D:/AlgorithmComparisonSim/SeparationSim/PK_SEP_allscores")
+
+
+combined_scores <- bind_rows(LV_SEP_allscores, LD_SEP_allscores, PK_SEP_allscores)
+
+# Reshape data from wide to long format
+combined_scores_long <- combined_scores %>%
+  pivot_longer(
+    cols = c(avg_silhouette, calinski_harabasz, davies_bouldin, adjusted_rand_index),
+    names_to = "metric",
+    values_to = "value"
+  )
+
+# Create faceted violin plots
+plot1 <- ggplot(combined_scores_long, aes(x = algorithm, y = value, fill = algorithm)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.1, alpha = 0.5, size = 2) +
+  facet_wrap(~ metric, scales = "free_y", ncol = 2) +  
+  theme_bw() +
+  labs(
+    title = "Clustering Performance Metrics by Algorithm: Separation Simulation",
+    x = "Algorithm",
+    y = "Score"
+  ) +
+  theme(
+    strip.text = element_text(size = 11, face = "bold"),
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  ) +
+  scale_fill_brewer(palette = "Set1")  
+
+plot1 
+
+```
+
 %%%%%%%%%%%%%%%%%%%%%%%%
 % PC Number Simulation %
 %%%%%%%%%%%%%%%%%%%%%%%%
 
 For this, the data is generated much the same (identically?) to the base sim. However, after finding an optimal number of PCs for the data, we then run the clustering and scoring on 1, .5, and 2 times this number of PCs. The results will show the robustness of different scoring methods to number of PCs. Plan is sixty datasets. 
 
-```{r PC Number Sim}
+```{r Make Parameter Matrix PCN}
 
-parameter_matrix_pcnumber <- tibble(
+# similar to base simulation, but want each third to be identical
+#each third already is? so our metadata file is just identical to the base sim one. not a problem i don't think. 
+parameter_matrix_PCN <- tibble(
   ID = 1:60,
-  proj_name = paste0("set", sprintf("%02d", 1:60), "PCN"),
+  proj_name = paste0("set", sprintf("%02d", 1:60)),
   batchCells = rep(500, 60),
-  group.prob = rep(list(c(0.25, 0.25, 0.25, 0.25)), 60),
-  de.prob = c(
-    rep(0.1, 15),
-    rep(0.2, 15),
-    rep(0.3, 15),
-    rep(0.4, 15)
-  ),
+  group.prob = rep(list(
+    c(0.25, 0.25, 0.25, 0.25),
+    c(0.33, 0.33, 0.34),
+    c(0.2, 0.2, 0.2, 0.2, 0.2),
+    c(0.3, 0.3, 0.4),
+    c(0.25, 0.25, 0.25, 0.25),
+    c(0.2, 0.3, 0.5),
+    c(0.15, 0.15, 0.2, 0.25, 0.25),
+    c(0.4, 0.3, 0.3),
+    c(0.2, 0.2, 0.2, 0.2, 0.2),
+    c(0.25, 0.35, 0.4)
+  ), times = 6),
+  de.prob = rep(c(0.05, 0.1, 0.1, 0.2, 0.2, 0.2, 0.2, 0.3, 0.3, 0.5), each = 6),
   nGenes = rep(2000, 60)
 )
 
@@ -1480,7 +1541,7 @@ if (file.exists(file = "D:/AlgorithmComparisonSim/PCNSim/metadata_acsPCN")) {
   
 } else {
   
-  fwrite(parameter_matrix_separation, file = "D:/AlgorithmComparisonSim/PCNSim/metadata_acsPCN")
+  fwrite(parameter_matrix_PCN, file = "D:/AlgorithmComparisonSim/PCNSim/metadata_acsPCN")
   
   cat("metadata_acsPCN file created. \n")
   
@@ -1488,5 +1549,243 @@ if (file.exists(file = "D:/AlgorithmComparisonSim/PCNSim/metadata_acsPCN")) {
 
 ```
 
+```{r Generate Datasets PCN}
 
+# read the file back in and set random seed for reproducibility
+metadata_acsPCN <- fread("D:/AlgorithmComparisonSim/PCNSim/metadata_acsPCN")
+
+metadata_acsPCN <- metadata_acsPCN |> 
+  mutate(
+    ID = as.numeric(ID),
+    proj_name = as.character(proj_name),
+    batchCells = as.numeric(batchCells),
+    de.prob = as.numeric(de.prob),
+    nGenes = as.numeric(nGenes),
+    group.prob = strsplit(group.prob, "\\|") |>
+      lapply(as.numeric)
+  )
+
+set.seed(1618)
+
+for (i in 1:nrow(metadata_acsPCN)) {
+  
+  # check if there is a file in the directory by the name we want
+  
+  if (!file.exists(file = paste0("D:/AlgorithmComparisonSim/PCNSim/", metadata_acsPCN$proj_name[i])) | 
+      !file.exists(file = paste0("D:/AlgorithmComparisonSim/PCNSim/", metadata_acsPCN$proj_name[i], "true_labels"))) {
+    
+    # make the dataset if at least one of them is missing
+    temp_object <- make_a_dataset(
+      proj_name = metadata_acsPCN$proj_name[i],
+      batchCells = metadata_acsPCN$batchCells[i],
+      group.prob = metadata_acsPCN$group.prob[[i]],
+      de.prob = metadata_acsPCN$de.prob[i],
+      nGenes = metadata_acsPCN$nGenes[i]
+    )
+    
+    if (file.exists(file = paste0("D:/AlgorithmComparisonSim/PCNSim/", metadata_acsPCN$proj_name[i]))) {
+      cat("File for", i, "already exists, moving on... \n")
+    } else {
+      
+      #write out counts
+      fwrite(temp_object$counts, file = paste0("D:/AlgorithmComparisonSim/PCNSim/", metadata_acsPCN[i, 2]))
+      
+      cat("File: ", metadata_acsPCN$proj_name[i], "created. Moving on... \n")
+      
+    }
+    
+    
+    
+    if (file.exists(file = paste0("D:/AlgorithmComparisonSim/PCNSim/", metadata_acsPCN$proj_name[i], "true_labels"))) {
+      cat("File: ", metadata_acsPCN$proj_name[i], "true_labels already exists in folder. Moving on... \n")
+      
+      } else {
+        
+      
+        fwrite(temp_object$labels, file = paste0("D:/AlgorithmComparisonSim/PCNSim/", metadata_acsPCN$proj_name[i], "true_labels"))  
+        
+        cat("True labels for", i, "created... \n")
+        
+    }
+    
+  }
+  
+}
+
+```
+
+```{r Choose PC Thresholds PCN}
+
+# read the file back in and set random seed for reproducibility
+metadata_acsPCN <- fread("D:/AlgorithmComparisonSim/PCNSim/metadata_acsPCN")
+
+metadata_acsPCN <- metadata_acsPCN |> 
+  mutate(
+    ID = as.numeric(ID),
+    proj_name = as.character(proj_name),
+    batchCells = as.numeric(batchCells),
+    de.prob = as.numeric(de.prob),
+    nGenes = as.numeric(nGenes),
+    group.prob = strsplit(group.prob, "\\|") |>
+      lapply(as.numeric)
+  )
+
+set.seed(1618)
+
+# initialise vector
+threshold_values <- matrix(nrow = nrow(metadata_acsPCN), ncol = 1)
+
+for (i in 1:nrow(metadata_acsPCN)) {
+  
+  temp_set <- fread(paste0("D:AlgorithmComparisonSim/PCNSim/", metadata_acsPCN$proj_name[[i]]))
+  
+  value <- choose_pcs_elbow(temp_set)$elbow_idx
+
+  #cat(value, " \n")
+  threshold_values[i] <- value
+  cat(".")
+}
+
+mean(threshold_values)
+
+```
+We see the exact same result from the BASE SIM. So we have our three levels: 5, 10, 20 PCs. 
+
+
+```{r PK Cluster and Writeout PCN}
+
+t_0 <- Sys.time()
+cat("BEGINNING PK PCN CLUSTER and WRITEOUT FULL RUN. \n")
+
+# read the file back in and set random seed for reproducibility
+metadata_acsPCN <- fread("D:/AlgorithmComparisonSim/PCNSim/metadata_acsPCN")
+
+metadata_acsPCN <- metadata_acsPCN |> 
+  mutate(
+    ID = as.numeric(ID),
+    proj_name = as.character(proj_name),
+    batchCells = as.numeric(batchCells),
+    de.prob = as.numeric(de.prob),
+    nGenes = as.numeric(nGenes),
+    group.prob = strsplit(group.prob, "\\|") |>
+      lapply(as.numeric)
+  )
+
+set.seed(1618)
+
+for (i in 1:nrow(metadata_acsPCN)) {
+  cat("Reading in the", i, "th dataset... \n")
+  temp_set <- fread(paste0(
+    "D:/AlgorithmComparisonSim/PCNSim/", metadata_acsPCN$proj_name[i]
+  ))
+  if (file.exists(
+    paste0("D:/AlgorithmComparisonSim/PCNSim/PK", sprintf("%02d", i), "PCN")
+  )) { 
+    cat("File ", paste0("D:/AlgorithmComparisonSim/PCNSim/PK", sprintf("%02d", i), "PCN"), "already exists... \n") 
+  } else {
+    
+    t_a <- Sys.time()
+    cat("Clustering begins... \n")
+    
+    # split by PCN
+    if (i <= 20) {
+      level <- 5
+    } else if (i <= 40) {
+      level <- 10
+    } else {
+      level <- 20
+    }
+    
+    temp_cluster <- run_PCAkmeans(i, temp_set, threshold = level, scale = TRUE)
+    cat("Clustering done, writing out... \n")
+    fwrite(temp_cluster, paste0("D:/AlgorithmComparisonSim/PCNSim/PK", sprintf("%02d", i), "PCN"))
+    cat("Written out file from set", i, " ... \n")
+    t_b <- Sys.time()
+    cat("Took", t_b - t_a, "for the ", i, "th one... \n")
+    
+    }
+    
+}
+
+t_1 <- Sys.time()
+cat("Took ", t_1 - t_0, "to do all 60. \n")
+
+```
+Done!
+
+```{r LV Cluster and Writeout PCN}
+
+t_0 <- Sys.time()
+cat("BEGINNING LV PCN CLUSTER and WRITEOUT FULL RUN. \n")
+
+# read the file back in and set random seed for reproducibility
+metadata_acsPCN <- fread("D:/AlgorithmComparisonSim/PCNSim/metadata_acsPCN")
+
+metadata_acsPCN <- metadata_acsPCN |> 
+  mutate(
+    ID = as.numeric(ID),
+    proj_name = as.character(proj_name),
+    batchCells = as.numeric(batchCells),
+    de.prob = as.numeric(de.prob),
+    nGenes = as.numeric(nGenes),
+    group.prob = strsplit(group.prob, "\\|") |>
+      lapply(as.numeric)
+  )
+
+set.seed(1618)
+
+for (i in 1:nrow(metadata_acsPCN)) {
+  cat("Reading in the", i, "th dataset... \n")
+  temp_set <- fread(paste0(
+    "D:/AlgorithmComparisonSim/PCNSim/", metadata_acsPCN$proj_name[i]
+  ))
+  if (file.exists(
+    paste0("D:/AlgorithmComparisonSim/PCNSim/LV", sprintf("%02d", i), "PCN")
+  )) { 
+    cat("File ", paste0("D:/AlgorithmComparisonSim/PCNSim/LV", sprintf("%02d", i), "PCN"), "already exists... \n") 
+  } else {
+    t_a <- Sys.time()
+    cat("Clustering begins... \n")
+    
+    # split by PCN
+    if (i <= 20) {
+      level <- 5
+    } else if (i <= 40) {
+      level <- 10
+    } else {
+      level <- 20
+    }
+    
+    temp_cluster <- run_graph_based(i, temp_set, mode = "Louvain", npcs = level)
+    cat("Clustering done, writing out... \n")
+    fwrite(temp_cluster, paste0("D:/AlgorithmComparisonSim/PCNSim/LV", sprintf("%02d", i), "PCN"))
+    cat("Written out file from set", i, " ... \n")
+    t_b <- Sys.time()
+    cat("Took", t_b - t_a, "for the ", i, "th one... \n")
+    
+    }
+    
+}
+
+t_1 <- Sys.time()
+cat("Took ", t_1 - t_0, "to do all 10. \n")
+
+```
+
+
+```{r LD Cluster and Writeout PCN}
+```
+
+
+```{r PK Scores Writeout PCN}
+```
+
+```{r LV Scores Writeout PCN}
+```
+
+```{r LD Scores Writeout PCN}
+```
+
+```{r Comparison Plot PCN}
+```
 
