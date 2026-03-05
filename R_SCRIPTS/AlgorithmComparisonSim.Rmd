@@ -1771,21 +1771,305 @@ t_1 <- Sys.time()
 cat("Took ", t_1 - t_0, "to do all 10. \n")
 
 ```
-
+Done!
 
 ```{r LD Cluster and Writeout PCN}
-```
 
+t_0 <- Sys.time()
+cat("BEGINNING LD PCN CLUSTER and WRITEOUT FULL RUN. \n")
+
+# read the file back in and set random seed for reproducibility
+metadata_acsPCN <- fread("D:/AlgorithmComparisonSim/PCNSim/metadata_acsPCN")
+
+metadata_acsPCN <- metadata_acsPCN |> 
+  mutate(
+    ID = as.numeric(ID),
+    proj_name = as.character(proj_name),
+    batchCells = as.numeric(batchCells),
+    de.prob = as.numeric(de.prob),
+    nGenes = as.numeric(nGenes),
+    group.prob = strsplit(group.prob, "\\|") |>
+      lapply(as.numeric)
+  )
+
+set.seed(1618)
+
+for (i in 1:nrow(metadata_acsPCN)) {
+  cat("Reading in the", i, "th dataset... \n")
+  temp_set <- fread(paste0(
+    "D:/AlgorithmComparisonSim/PCNSim/", metadata_acsPCN$proj_name[i]
+  ))
+  if (file.exists(
+    paste0("D:/AlgorithmComparisonSim/PCNSim/LD", sprintf("%02d", i), "PCN")
+  )) { 
+    cat("File ", paste0("D:/AlgorithmComparisonSim/PCNSim/LD", sprintf("%02d", i), "PCN"), "already exists... \n") 
+  } else {
+    t_a <- Sys.time()
+    cat("Clustering begins... \n")
+    
+    # split by PCN
+    if (i <= 20) {
+      level <- 5
+    } else if (i <= 40) {
+      level <- 10
+    } else {
+      level <- 20
+    }
+    
+    temp_cluster <- run_graph_based(i, temp_set, mode = "Leiden", npcs = level)
+    cat("Clustering done, writing out... \n")
+    fwrite(temp_cluster, paste0("D:/AlgorithmComparisonSim/PCNSim/LD", sprintf("%02d", i), "PCN"))
+    cat("Written out file from set", i, " ... \n")
+    t_b <- Sys.time()
+    cat("Took", t_b - t_a, "for the ", i, "th one... \n")
+    
+    }
+    
+}
+
+t_1 <- Sys.time()
+cat("Took ", t_1 - t_0, "to do all 10. \n")
+
+```
+Done!
 
 ```{r PK Scores Writeout PCN}
+
+t_0 <- Sys.time()
+cat("BEGINNING PK PCN SCORES WRITEOUT FULL RUN. \n")
+
+# read the file back in and set random seed for reproducibility
+metadata_acsPCN <- fread("D:/AlgorithmComparisonSim/PCNSim/metadata_acsPCN")
+
+metadata_acsPCN <- metadata_acsPCN |> 
+  mutate(
+    ID = as.numeric(ID),
+    proj_name = as.character(proj_name),
+    batchCells = as.numeric(batchCells),
+    de.prob = as.numeric(de.prob),
+    nGenes = as.numeric(nGenes),
+    group.prob = strsplit(group.prob, "\\|") |>
+      lapply(as.numeric)
+  )
+
+set.seed(1618)
+
+PK_PCN_allscores <- tibble(
+  algorithm = character(),
+  avg_silhouette = numeric(),
+  calinski_harabasz = numeric(),
+  davies_bouldin = numeric(),
+  adjusted_rand_index = numeric()
+)
+
+for (i in 1:nrow(metadata_acsPCN)) {
+  
+  temp_cluster <- fread(paste0("D:/AlgorithmComparisonSim/PCNSim/PK", sprintf("%02d", i), "PCN"))[["cluster"]]
+  temp_set <- t(fread(paste0("D:/AlgorithmComparisonSim/PCNSim/set", sprintf("%02d", i))))
+  temp_true <- fread(paste0("D:/AlgorithmComparisonSim/PCNSim/set", sprintf("%02d", i), "true_labels"))[["true_group"]]
+  
+  t_a <- Sys.time()
+  cat("Scoring the ", i, "th one... \n")
+  
+  temp_score <- cluster_scores(algorithm = "PCAKMeans",
+    clustering = temp_cluster,
+    original_counts = temp_set,
+    true_labels = temp_true)
+  
+  PK_PCN_allscores <- add_row(PK_PCN_allscores, temp_score)
+  cat("added", i, "one to PK_PCN_allscores... \n")
+  t_b <- Sys.time()
+  cat(t_b - t_a, "to do the ", i, "loop... \n")
+  
+}
+
+t_1 <- Sys.time()
+cat("TOOK", t_1 - t_0, "TO DO ALL 10... \n")
+
+if (file.exists("D:/AlgorithmComparisonSim/PCNSim/PK_PCN_allscores")) {
+  cat("Scores for PK PCN already exist... \n")
+} else {
+  fwrite(PK_SEP_allscores, "D:/AlgorithmComparisonSim/PCNSim/PK_PCN_allscores")
+  cat("Written out PK PCN scores... \n")
+}
+
 ```
+Done
 
 ```{r LV Scores Writeout PCN}
-```
 
+t_0 <- Sys.time()
+cat("BEGINNING LV PCN SCORES WRITEOUT FULL RUN. \n")
+
+# read the file back in and set random seed for reproducibility
+metadata_acsPCN <- fread("D:/AlgorithmComparisonSim/PCNSim/metadata_acsPCN")
+
+metadata_acsPCN <- metadata_acsPCN |> 
+  mutate(
+    ID = as.numeric(ID),
+    proj_name = as.character(proj_name),
+    batchCells = as.numeric(batchCells),
+    de.prob = as.numeric(de.prob),
+    nGenes = as.numeric(nGenes),
+    group.prob = strsplit(group.prob, "\\|") |>
+      lapply(as.numeric)
+  )
+
+set.seed(1618)
+
+LV_PCN_allscores <- tibble(
+  algorithm = character(),
+  avg_silhouette = numeric(),
+  calinski_harabasz = numeric(),
+  davies_bouldin = numeric(),
+  adjusted_rand_index = numeric()
+)
+
+for (i in 1:nrow(metadata_acsPCN)) {
+  
+  temp_cluster <- fread(paste0("D:/AlgorithmComparisonSim/PCNSim/LV", sprintf("%02d", i), "PCN"))[["cluster"]]
+  temp_set <- t(fread(paste0("D:/AlgorithmComparisonSim/PCNSim/set", sprintf("%02d", i))))
+  temp_true <- fread(paste0("D:/AlgorithmComparisonSim/PCNSim/set", sprintf("%02d", i), "true_labels"))[["true_group"]]
+  
+  t_a <- Sys.time()
+  cat("Scoring the ", i, "th one... \n")
+  
+  temp_score <- cluster_scores(algorithm = "Louvain",
+    clustering = temp_cluster,
+    original_counts = temp_set,
+    true_labels = temp_true)
+  
+  LV_PCN_allscores <- add_row(LV_PCN_allscores, temp_score)
+  cat("added", i, "one to LV_PCN_allscores... \n")
+  t_b <- Sys.time()
+  cat(t_b - t_a, "to do the ", i, "loop... \n")
+  
+}
+
+t_1 <- Sys.time()
+cat("TOOK", t_1 - t_0, "TO DO ALL 10... \n")
+
+if (file.exists("D:/AlgorithmComparisonSim/PCNSim/LV_PCN_allscores")) {
+  cat("Scores for LV PCN already exist... \n")
+} else {
+  fwrite(LV_SEP_allscores, "D:/AlgorithmComparisonSim/PCNSim/LV_PCN_allscores")
+  cat("Written out LV PCN scores... \n")
+}
+
+```
+Done
 ```{r LD Scores Writeout PCN}
-```
 
+t_0 <- Sys.time()
+cat("BEGINNING LD PCN SCORES WRITEOUT FULL RUN. \n")
+
+# read the file back in and set random seed for reproducibility
+metadata_acsPCN <- fread("D:/AlgorithmComparisonSim/PCNSim/metadata_acsPCN")
+
+metadata_acsPCN <- metadata_acsPCN |> 
+  mutate(
+    ID = as.numeric(ID),
+    proj_name = as.character(proj_name),
+    batchCells = as.numeric(batchCells),
+    de.prob = as.numeric(de.prob),
+    nGenes = as.numeric(nGenes),
+    group.prob = strsplit(group.prob, "\\|") |>
+      lapply(as.numeric)
+  )
+
+set.seed(1618)
+
+LD_PCN_allscores <- tibble(
+  algorithm = character(),
+  avg_silhouette = numeric(),
+  calinski_harabasz = numeric(),
+  davies_bouldin = numeric(),
+  adjusted_rand_index = numeric()
+)
+
+for (i in 1:nrow(metadata_acsPCN)) {
+  
+  temp_cluster <- fread(paste0("D:/AlgorithmComparisonSim/PCNSim/LD", sprintf("%02d", i), "PCN"))[["cluster"]]
+  temp_set <- t(fread(paste0("D:/AlgorithmComparisonSim/PCNSim/set", sprintf("%02d", i))))
+  temp_true <- fread(paste0("D:/AlgorithmComparisonSim/PCNSim/set", sprintf("%02d", i), "true_labels"))[["true_group"]]
+  
+  t_a <- Sys.time()
+  cat("Scoring the ", i, "th one... \n")
+  
+  temp_score <- cluster_scores(algorithm = "Leiden",
+    clustering = temp_cluster,
+    original_counts = temp_set,
+    true_labels = temp_true)
+  
+  LD_PCN_allscores <- add_row(LD_PCN_allscores, temp_score)
+  cat("added", i, "one to LD_PCN_allscores... \n")
+  t_b <- Sys.time()
+  cat(t_b - t_a, "to do the ", i, "loop... \n")
+  
+}
+
+t_1 <- Sys.time()
+cat("TOOK", t_1 - t_0, "TO DO ALL 10... \n")
+
+if (file.exists("D:/AlgorithmComparisonSim/PCNSim/LD_PCN_allscores")) {
+  cat("Scores for LD PCN already exist... \n")
+} else {
+  fwrite(LD_SEP_allscores, "D:/AlgorithmComparisonSim/PCNSim/LD_PCN_allscores")
+  cat("Written out LD PCN scores... \n")
+}
+
+```
+Done
 ```{r Comparison Plot PCN}
+
+metadata_acsPCN <- fread("D:/AlgorithmComparisonSim/PCNSim/metadata_acsPCN")
+
+metadata_acsPCN <- metadata_acsPCN |> 
+  mutate(
+    ID = as.numeric(ID),
+    proj_name = as.character(proj_name),
+    batchCells = as.numeric(batchCells),
+    de.prob = as.numeric(de.prob),
+    nGenes = as.numeric(nGenes),
+    group.prob = strsplit(group.prob, "\\|") |>
+      lapply(as.numeric)
+  )
+
+set.seed(1618)
+
+LV_PCN_allscores <- fread("D:/AlgorithmComparisonSim/PCNSim/LV_PCN_allscores")
+LD_PCN_allscores <- fread("D:/AlgorithmComparisonSim/PCNSim/LD_PCN_allscores")
+PK_PCN_allscores <- fread("D:/AlgorithmComparisonSim/PCNSim/PK_PCN_allscores")
+
+
+combined_scores <- bind_rows(LV_PCN_allscores, LD_PCN_allscores, PK_PCN_allscores)
+
+# Reshape data from wide to long format
+combined_scores_long <- combined_scores %>%
+  pivot_longer(
+    cols = c(avg_silhouette, calinski_harabasz, davies_bouldin, adjusted_rand_index),
+    names_to = "metric",
+    values_to = "value"
+  )
+
+# Create faceted violin plots
+plot1 <- ggplot(combined_scores_long, aes(x = algorithm, y = value, fill = algorithm)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.1, alpha = 0.5, size = 2) +
+  facet_wrap(~ metric, scales = "free_y", ncol = 2) +  
+  theme_bw() +
+  labs(
+    title = "Clustering Performance Metrics by Algorithm: Principal Component Number Simulation",
+    x = "Algorithm",
+    y = "Score"
+  ) +
+  theme(
+    strip.text = element_text(size = 11, face = "bold"),
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  ) +
+  scale_fill_brewer(palette = "Set1")  
+
+plot1 
+
 ```
 
