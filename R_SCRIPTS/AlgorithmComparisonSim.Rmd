@@ -1469,8 +1469,13 @@ metadata_acsSEP <- metadata_acsSEP |>
 set.seed(1618)
 
 LV_SEP_allscores <- fread("D:/AlgorithmComparisonSim/SeparationSim/LV_SEP_allscores")
+LV_SEP_allscores$separation <- metadata_acsSEP$de.prob
+
 LD_SEP_allscores <- fread("D:/AlgorithmComparisonSim/SeparationSim/LD_SEP_allscores")
+LD_SEP_allscores$separation <- metadata_acsSEP$de.prob
+
 PK_SEP_allscores <- fread("D:/AlgorithmComparisonSim/SeparationSim/PK_SEP_allscores")
+PK_SEP_allscores$separation <- metadata_acsSEP$de.prob
 
 
 combined_scores <- bind_rows(LV_SEP_allscores, LD_SEP_allscores, PK_SEP_allscores)
@@ -1484,9 +1489,9 @@ combined_scores_long <- combined_scores %>%
   )
 
 # Create faceted violin plots
-plot1 <- ggplot(combined_scores_long, aes(x = algorithm, y = value, fill = algorithm)) +
+plot1 <- ggplot(combined_scores_long, aes(x = algorithm, y = value)) +
   geom_boxplot() +
-  geom_jitter(width = 0.1, alpha = 0.5, size = 2) +
+  geom_jitter(aes(colour = as.factor(separation)), width = 0.1, alpha = 0.5, size = 2) +
   facet_wrap(~ metric, scales = "free_y", ncol = 2) +  
   theme_bw() +
   labs(
@@ -1958,6 +1963,7 @@ if (file.exists("D:/AlgorithmComparisonSim/PCNSim/LV_PCN_allscores")) {
 
 ```
 Done
+
 ```{r LD Scores Writeout PCN}
 
 t_0 <- Sys.time()
@@ -2020,6 +2026,7 @@ if (file.exists("D:/AlgorithmComparisonSim/PCNSim/LD_PCN_allscores")) {
 
 ```
 Done
+
 ```{r Comparison Plot PCN}
 
 metadata_acsPCN <- fread("D:/AlgorithmComparisonSim/PCNSim/metadata_acsPCN")
