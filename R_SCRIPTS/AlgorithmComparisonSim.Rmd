@@ -2044,9 +2044,16 @@ metadata_acsPCN <- metadata_acsPCN |>
 
 set.seed(1618)
 
+npcs <- c(rep(5, 20), rep(10, 20), rep(20, 20))
+
 LV_PCN_allscores <- fread("D:/AlgorithmComparisonSim/PCNSim/LV_PCN_allscores")
+LV_PCN_allscores$npcs <- npcs
+
 LD_PCN_allscores <- fread("D:/AlgorithmComparisonSim/PCNSim/LD_PCN_allscores")
+LD_PCN_allscores$npcs <- npcs
+
 PK_PCN_allscores <- fread("D:/AlgorithmComparisonSim/PCNSim/PK_PCN_allscores")
+PK_PCN_allscores$npcs <- npcs
 
 
 combined_scores <- bind_rows(LV_PCN_allscores, LD_PCN_allscores, PK_PCN_allscores)
@@ -2060,9 +2067,9 @@ combined_scores_long <- combined_scores %>%
   )
 
 # Create faceted violin plots
-plot1 <- ggplot(combined_scores_long, aes(x = algorithm, y = value, fill = algorithm)) +
+plot1 <- ggplot(combined_scores_long, aes(x = algorithm, y = value)) +
   geom_boxplot() +
-  geom_jitter(width = 0.1, alpha = 0.5, size = 2) +
+  geom_jitter(aes(colour = as.factor(npcs)), width = 0.1, alpha = 0.5, size = 2) +
   facet_wrap(~ metric, scales = "free_y", ncol = 2) +  
   theme_bw() +
   labs(
