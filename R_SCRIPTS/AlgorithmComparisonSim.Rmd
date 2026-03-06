@@ -896,10 +896,16 @@ combined_scores_long <- combined_scores %>%
   )
 
 # Create faceted violin plots
-plot1 <- ggplot(combined_scores_long, aes(x = algorithm, y = value, fill = algorithm)) +
+plot1 <- ggplot(combined_scores_long, aes(x = algorithm, y = value)) +
   geom_boxplot() +
-  geom_jitter(width = 0.1, alpha = 0.5, size = 2) +
-  facet_wrap(~ metric, scales = "free_y", ncol = 2) +  
+  geom_jitter(width = 0.1, alpha = 0.25, size = 2) +
+  facet_wrap(~ metric, scales = "free_y", ncol = 2, 
+             labeller = labeller(metric = c(
+    "avg_silhouette" = "Average Silhouette Score",
+    "calinski_harabasz" = "Calinski-Harabasz",
+    "davies_bouldin" = "Davies-Bouldin",
+    "adjusted_rand_index" = "Adjusted Rand Index"
+  ))) +  
   theme_bw() +
   labs(
     title = "Clustering Performance Metrics by Algorithm",
@@ -909,16 +915,16 @@ plot1 <- ggplot(combined_scores_long, aes(x = algorithm, y = value, fill = algor
   theme(
     strip.text = element_text(size = 11, face = "bold"),
     axis.text.x = element_text(angle = 45, hjust = 1)
-  ) +
-  scale_fill_brewer(palette = "Set1")  
+  )
 
 plot1 
 
-# ggsave("C:/Users/fmhfl/Desktop/Undergrad Project/undergrad_project/OUTPUTS/metrics_by_algorithm.png", 
-#        plot = plot1, 
-#        width = 10, 
-#        height = 8, 
-#        dpi = 300)
+ggsave("C:/Users/fmhfl/Desktop/Undergrad Project/undergrad_project/OUTPUTS/PlotBase.png",
+       plot = plot1,
+       width = 7,
+       height = 5,
+       dpi = 600,
+       units = "in")
 
 ```
 Done!
@@ -1488,24 +1494,38 @@ combined_scores_long <- combined_scores %>%
     values_to = "value"
   )
 
-# Create faceted violin plots
+# Create faceted box plots
 plot1 <- ggplot(combined_scores_long, aes(x = algorithm, y = value)) +
   geom_boxplot() +
-  geom_jitter(aes(colour = as.factor(separation)), width = 0.1, alpha = 0.5, size = 2) +
-  facet_wrap(~ metric, scales = "free_y", ncol = 2) +  
+  geom_jitter(aes(colour = as.factor(separation)), width = 0.1, alpha = 0.25, size = 2) +
+  facet_wrap(~ metric, scales = "free_y", ncol = 2,
+             labeller = labeller(metric = c(
+               "avg_silhouette" = "Average Silhouette Score",
+               "calinski_harabasz" = "Calinski-Harabasz",
+               "davies_bouldin" = "Davies-Bouldin",
+               "adjusted_rand_index" = "Adjusted Rand Index"
+             ))) +  
   theme_bw() +
   labs(
     title = "Clustering Performance Metrics by Algorithm: Separation Simulation",
     x = "Algorithm",
-    y = "Score"
+    y = "Score",
+    colour = "Value of de.prob Parameter"
   ) +
   theme(
     strip.text = element_text(size = 11, face = "bold"),
     axis.text.x = element_text(angle = 45, hjust = 1)
   ) +
-  scale_fill_brewer(palette = "Set1")  
+  scale_color_viridis_d(option = "plasma")  
 
 plot1 
+
+ggsave("C:/Users/fmhfl/Desktop/Undergrad Project/undergrad_project/OUTPUTS/PlotSep.png",
+       plot = plot1,
+       width = 7,
+       height = 5,
+       dpi = 600,
+       units = "in")
 
 ```
 
@@ -2070,20 +2090,35 @@ combined_scores_long <- combined_scores %>%
 plot1 <- ggplot(combined_scores_long, aes(x = algorithm, y = value)) +
   geom_boxplot() +
   geom_jitter(aes(colour = as.factor(npcs)), width = 0.1, alpha = 0.5, size = 2) +
-  facet_wrap(~ metric, scales = "free_y", ncol = 2) +  
+  facet_wrap(~ metric, scales = "free_y", ncol = 2, 
+             labeller = labeller(metric = c(
+    "avg_silhouette" = "Average Silhouette Score",
+    "calinski_harabasz" = "Calinski-Harabasz",
+    "davies_bouldin" = "Davies-Bouldin",
+    "adjusted_rand_index" = "Adjusted Rand Index"
+  ))) +  
   theme_bw() +
   labs(
-    title = "Clustering Performance Metrics by Algorithm: Principal Component Number Simulation",
+    title = "Clustering Performance Metrics by Algorithm: PC Number Simulation",
     x = "Algorithm",
-    y = "Score"
+    y = "Score",
+    colour = "Number of PCs Used"
   ) +
   theme(
     strip.text = element_text(size = 11, face = "bold"),
     axis.text.x = element_text(angle = 45, hjust = 1)
   ) +
-  scale_fill_brewer(palette = "Set1")  
+  scale_color_viridis_d(option = "inferno")    
+
 
 plot1 
+
+ggsave("C:/Users/fmhfl/Desktop/Undergrad Project/undergrad_project/OUTPUTS/PlotPCNAlt.png",
+       plot = plot1,
+       width = 7,
+       height = 5,
+       dpi = 600,
+       units = "in")
 
 ```
 

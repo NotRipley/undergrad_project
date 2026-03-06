@@ -1,0 +1,27 @@
+---
+title: "Visualise"
+output: html_document
+---
+
+```{r Libraries}
+
+library(tidyverse)
+library(data.table)
+
+```
+
+```{r Read in Relevant Data}
+
+# first aim of the game is to read in the set, and plot its first two PCs against each other to see what we got.
+SET <- fread("D:/AlgorithmComparisonSim/BaseSim/set25")
+TRUTH <- fread("D:/AlgorithmComparisonSim/BaseSim/set25true_labels")
+
+PCA <- prcomp(SET,
+              center = TRUE,
+              scale. = TRUE)
+# PCA$rotation <- -1 * PCA$rotation
+# PCA$x <- -1 * PCA$x
+
+plot(PCA$x[, 1], PCA$x[, 2])
+
+```
