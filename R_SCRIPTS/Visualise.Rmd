@@ -15,6 +15,20 @@ library(data.table)
 # first aim of the game is to read in the set, and plot its first two PCs against each other to see what we got.
 SET <- fread("D:/AlgorithmComparisonSim/BaseSim/set25")
 TRUTH <- fread("D:/AlgorithmComparisonSim/BaseSim/set25true_labels")
+PCAKMEANS <- fread("D:/AlgorithmComparisonSim/BaseSim/PK25")
+LOUVAIN <- fread("D:/AlgorithmComparisonSim/BaseSim/LV25")
+LEIDEN <- fread("D:/AlgorithmComparisonSim/BaseSim/LD25")
+
+# we do a lil pre processing. first transpose it, which will mean our columns have low and zero variances. so we drop those that do. 
+SET <- t(SET)
+SET <- SET[, apply(SET, 2, var) != 0]
+
+#now TRUTH has a weird format that we need to recover. 
+TRUTH$true_group <- as.numeric(str_remove_all(TRUTH$true_group, "Group"))
+
+#now Louvain has assignments 0-3 instead of 1-4
+LOUVAIN$cluster <- LOUVAIN$cluster + 1
+
 
 PCA <- prcomp(SET,
               center = TRUE,
@@ -22,6 +36,50 @@ PCA <- prcomp(SET,
 # PCA$rotation <- -1 * PCA$rotation
 # PCA$x <- -1 * PCA$x
 
-plot(PCA$x[, 1], PCA$x[, 2])
+#plot(PCA$x[, 1], PCA$x[, 2])
+
+plot_data <- tibble(
+  X = PCA$x[, 1],
+  Y = PCA$x[, 2],
+  truth = TRUTH$true_group,
+  pcakmeans = PCAKMEANS$cluster,
+  louvain = LOUVAIN$cluster,
+  leiden = LEIDEN$cluster
+)
+
+# Reshape data to long format for faceting
+plot_data_long <- plot_data %>%
+  pivot_longer(
+    cols = c(truth, pcakmeans, louvain, leiden),
+    names_to = "method",
+    values_to = "cluster"
+  ) %>%
+  mutate(
+    method = factor(method, 
+                   levels = c("truth", "pcakmeans", "louvain", "leiden"),
+                   labels = c("True Groups", "PCA K-means", "Louvain", "Leiden"))
+  )
+
+# Create faceted plot
+ggplot(data = plot_data_long) +
+  geom_point(mapping = aes(x = X, y = Y, colour = factor(cluster)), alpha = 0.7) +
+  facet_wrap(~ method, nrow = 2) +
+  labs(
+    x = "PC1",
+    y = "PC2",
+    colour = "Cluster"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "right") +
+  scale_color_viridis_d(option = "turbo")
 
 ```
+
+```{r Now Plot With Clusterings}
+
+# probably dont even need this extra chunk
+
+```
+
+
+
