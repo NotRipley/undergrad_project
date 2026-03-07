@@ -11,7 +11,7 @@ library(viridis)
 
 ```
 
-```{r Read in Relevant Data}
+```{r vizcluster25}
 
 # first aim of the game is to read in the set, and plot its first two PCs against each other to see what we got.
 SET <- fread("D:/AlgorithmComparisonSim/BaseSim/set25")
@@ -75,16 +75,21 @@ vizcluster25 <- ggplot(data = plot_data_long) +
   theme(legend.position = "right") +
   scale_color_viridis_d(option = "viridis")
 
-ggsave("C:/Users/fmhfl/Desktop/Undergrad Project/undergrad_project/OUTPUTS/vizcluster25.png",
-       plot = vizcluster25,
-       width = 7,
-       height = 5,
-       dpi = 600,
-       units = "in")
+if (!file.exists("C:/Users/fmhfl/Desktop/Undergrad Project/undergrad_project/OUTPUTS/vizcluster25.png")) {
+  ggsave("C:/Users/fmhfl/Desktop/Undergrad Project/undergrad_project/OUTPUTS/vizcluster25.png",
+         plot = vizcluster25,
+         width = 7,
+         height = 5,
+         dpi = 600,
+         units = "in")
+} else {
+  cat("vizcluster25 already exists \n")
+}
+
 
 ```
 
-```{r Now Plot The Silhouettes}
+```{r silzoomsep}
 
 # on paper what do we want from these plots
 # i think essentially we want to facet the silhouette one by colour, creating new boxplots for each. just to help us view and quote out point statistics while we talk about it. 
@@ -121,16 +126,12 @@ SEPSCORES <- rbind(SEPSCORES_pk, SEPSCORES_lv, SEPSCORES_ld)
 
 # but as of right now this has no sep info, which is the same vector that we want from the metadata
 
-
-
-
-
 # Extract the 4 plasma colors for sep values 0.1, 0.2, 0.3, 0.4
 plasma_colors <- viridis(4, option = "C")
 names(plasma_colors) <- c("0.1", "0.2", "0.3", "0.4")
 
 # Faceted plot with matching colors
-ggplot(data = SEPSCORES, aes(x = algorithm, y = avg_silhouette)) +
+silzoomsep <- ggplot(data = SEPSCORES, aes(x = algorithm, y = avg_silhouette)) +
   geom_point(aes(color = factor(sep)), 
              position = position_jitter(width = 0.2, height = 0), 
              alpha = 1, size = 2) +
@@ -144,10 +145,88 @@ ggplot(data = SEPSCORES, aes(x = algorithm, y = avg_silhouette)) +
   theme_bw() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
+if (!file.exists("C:/Users/fmhfl/Desktop/Undergrad Project/undergrad_project/OUTPUTS/silzoomsep.png")) {
+  ggsave("C:/Users/fmhfl/Desktop/Undergrad Project/undergrad_project/OUTPUTS/silzoomsep.png",
+         plot = vizcluster25,
+         width = 7,
+         height = 5,
+         dpi = 600,
+         units = "in")
+} else {
+  cat("silzoomsep already exists \n")
+}
+
 
 # after lunch, we neaten up these plots and make one for pcn as well. then we do the elbow plot. 
 
 ```
 
+```{r silzoompcn}
+
+metadata_acsPCN <- fread("D:/AlgorithmComparisonSim/PCNSim/metadata_acsPCN")
+
+metadata_acsPCN <- metadata_acsPCN |> 
+  mutate(
+    ID = as.numeric(ID),
+    proj_name = as.character(proj_name),
+    batchCells = as.numeric(batchCells),
+    de.prob = as.numeric(de.prob),
+    nGenes = as.numeric(nGenes),
+    group.prob = strsplit(group.prob, "\\|") |>
+      lapply(as.numeric)
+  )
+
+PCNSCORES_pk <- fread("D:/AlgorithmComparisonSim/PCNSim/PK_PCN_allscores")
+PCNSCORES_lv <- fread("D:/AlgorithmComparisonSim/PCNSim/LV_PCN_allscores")
+PCNSCORES_ld <- fread("D:/AlgorithmComparisonSim/PCNSim/LD_PCN_allscores")
+
+PCNSCORES <- rbind(PCNSCORES_pk, PCNSCORES_lv, PCNSCORES_ld)
+pcvector <- c(rep(c(rep(5, 20), rep(10, 20), rep(20, 20)), 3))
+PCNSCORES$pcn <- pcvector
+
+#need to find a way to get pcs onto this frame
+
+# but as of right now this has no sep info, which is the same vector that we want from the metadata
+
+# Extract the 4 plasma colors for sep values 0.1, 0.2, 0.3, 0.4
+plasma_colors <- viridis(3, option = "B")
+names(plasma_colors) <- c("5", "10", "20")
+
+# Faceted plot with matching colors
+silzoompcn <- ggplot(data = PCNSCORES, aes(x = algorithm, y = avg_silhouette)) +
+  geom_point(aes(color = factor(pcn)), 
+             position = position_jitter(width = 0.2, height = 0), 
+             alpha = 1, size = 2) +
+  geom_boxplot(alpha = 0.3, outlier.shape = NA) +
+  facet_wrap(~ pcn, scales = "free_y", 
+             labeller = as_labeller(c(
+               "5" = "5 PCs",
+               "10" = "10 PCs",
+               "20" = "20 PCs"
+             ))) +
+  scale_color_manual(values = plasma_colors, guide = "none") +
+  labs(
+    x = "Algorithm",
+    y = "Average Silhouette Score"
+  ) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# if (!file.exists("C:/Users/fmhfl/Desktop/Undergrad Project/undergrad_project/OUTPUTS/silzoomsep.png")) {
+#   ggsave("C:/Users/fmhfl/Desktop/Undergrad Project/undergrad_project/OUTPUTS/silzoomsep.png",
+#          plot = vizcluster25,
+#          width = 7,
+#          height = 5,
+#          dpi = 600,
+#          units = "in")
+# } else {
+#   cat("silzoomsep already exists \n")
+# }
+
+```
+
+```{r choosepcs}
+
+```
 
 
