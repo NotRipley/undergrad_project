@@ -7,6 +7,7 @@ output: html_document
 
 library(tidyverse)
 library(data.table)
+library(viridis)
 
 ```
 
@@ -71,13 +72,72 @@ ggplot(data = plot_data_long) +
   ) +
   theme_minimal() +
   theme(legend.position = "right") +
-  scale_color_viridis_d(option = "turbo")
+  scale_color_viridis_d(option = "viridis")
 
 ```
 
-```{r Now Plot With Clusterings}
+```{r Now Plot The Silhouettes}
 
-# probably dont even need this extra chunk
+# on paper what do we want from these plots
+# i think essentially we want to facet the silhouette one by colour, creating new boxplots for each. just to help us view and quote out point statistics while we talk about it. 
+
+# so what do we need to load in? this isn't just one set we need. it's an allscores object, specifically the sep one. 
+
+metadata_acsSEP <- fread("D:/AlgorithmComparisonSim/SeparationSim/metadata_acsSEP")
+
+metadata_acsSEP <- metadata_acsSEP |> 
+  mutate(
+    ID = as.numeric(ID),
+    proj_name = as.character(proj_name),
+    batchCells = as.numeric(batchCells),
+    de.prob = as.numeric(de.prob),
+    nGenes = as.numeric(nGenes),
+    group.prob = strsplit(group.prob, "\\|") |>
+      lapply(as.numeric)
+  )
+
+SEPSCORES_pk <- fread("D:/AlgorithmComparisonSim/SeparationSim/PK_SEP_allscores")
+SEPSCORES_lv <- fread("D:/AlgorithmComparisonSim/SeparationSim/LV_SEP_allscores")
+SEPSCORES_ld <- fread("D:/AlgorithmComparisonSim/SeparationSim/LD_SEP_allscores")
+
+SEPSCORES_pk$algo <- "pk"
+SEPSCORES_pk$sep <- metadata_acsSEP$de.prob
+
+SEPSCORES_lv$algo <- "lv"
+SEPSCORES_lv$sep <- metadata_acsSEP$de.prob
+
+SEPSCORES_ld$algo <- "ld"
+SEPSCORES_ld$sep <- metadata_acsSEP$de.prob
+
+SEPSCORES <- rbind(SEPSCORES_pk, SEPSCORES_lv, SEPSCORES_ld)
+
+# but as of right now this has no sep info, which is the same vector that we want from the metadata
+
+
+
+
+
+# Extract the 4 plasma colors for sep values 0.1, 0.2, 0.3, 0.4
+plasma_colors <- viridis(4, option = "C")
+names(plasma_colors) <- c("0.1", "0.2", "0.3", "0.4")
+
+# Faceted plot with matching colors
+ggplot(data = SEPSCORES, aes(x = algorithm, y = avg_silhouette)) +
+  geom_point(aes(color = factor(sep)), 
+             position = position_jitter(width = 0.2, height = 0), 
+             alpha = 1, size = 2) +
+  geom_boxplot(alpha = 0.3, outlier.shape = NA) +
+  facet_wrap(~ sep, labeller = label_both) +
+  scale_color_manual(values = plasma_colors, guide = "none") +
+  labs(
+    x = "Algorithm",
+    y = "Average Silhouette Score"
+  ) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+# after lunch, we neaten up these plots and make one for pcn as well. then we do the elbow plot. 
 
 ```
 
