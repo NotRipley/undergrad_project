@@ -135,7 +135,7 @@ silzoomsep <- ggplot(data = SEPSCORES, aes(x = algorithm, y = avg_silhouette)) +
   geom_point(aes(color = factor(sep)), 
              position = position_jitter(width = 0.2, height = 0), 
              alpha = 1, size = 2) +
-  geom_boxplot(alpha = 0.3, outlier.shape = NA) +
+  geom_boxplot(alpha = 1, outlier.shape = NA) +
   facet_wrap(~ sep, scales = "free_y", labeller = label_both) +
   scale_color_manual(values = plasma_colors, guide = "none") +
   labs(
@@ -189,22 +189,22 @@ PCNSCORES$pcn <- pcvector
 # but as of right now this has no sep info, which is the same vector that we want from the metadata
 
 # Extract the 4 plasma colors for sep values 0.1, 0.2, 0.3, 0.4
-plasma_colors <- viridis(3, option = "B")
-names(plasma_colors) <- c("5", "10", "20")
+inferno_colors <- viridis(3, option = "B")
+names(inferno_colors) <- c("5", "10", "20")
 
 # Faceted plot with matching colors
 silzoompcn <- ggplot(data = PCNSCORES, aes(x = algorithm, y = avg_silhouette)) +
   geom_point(aes(color = factor(pcn)), 
              position = position_jitter(width = 0.2, height = 0), 
              alpha = 1, size = 2) +
-  geom_boxplot(alpha = 0.3, outlier.shape = NA) +
+  geom_boxplot(alpha = 1, outlier.shape = NA) +
   facet_wrap(~ pcn, scales = "free_y", 
              labeller = as_labeller(c(
                "5" = "5 PCs",
                "10" = "10 PCs",
                "20" = "20 PCs"
              ))) +
-  scale_color_manual(values = plasma_colors, guide = "none") +
+  scale_color_manual(values = inferno_colors, guide = "none") +
   labs(
     x = "Algorithm",
     y = "Average Silhouette Score"
@@ -226,6 +226,89 @@ silzoompcn <- ggplot(data = PCNSCORES, aes(x = algorithm, y = avg_silhouette)) +
 ```
 
 ```{r choosepcs}
+
+metadata_acsPCN <- fread("D:/AlgorithmComparisonSim/PCNSim/metadata_acsPCN")
+
+metadata_acsPCN <- metadata_acsPCN |> 
+  mutate(
+    ID = as.numeric(ID),
+    proj_name = as.character(proj_name),
+    batchCells = as.numeric(batchCells),
+    de.prob = as.numeric(de.prob),
+    nGenes = as.numeric(nGenes),
+    group.prob = strsplit(group.prob, "\\|") |>
+      lapply(as.numeric)
+  )
+
+# a lot of this chunk will probably be identical to the choose pcs elbow function
+# we can do this for base sim 25 as an example, see how it looks. 
+
+SET <- fread("D:/AlgorithmComparisonSim/BaseSim/set25")
+SET <- t(SET)
+SET <- SET[, apply(SET, 2, var) != 0]
+
+pc_object <- prcomp(SET)
+pc_vars <- pc_object$sdev^2
+variance_explained <- pc_vars / sum(pc_vars)
+
+x1 <- 1
+y1 <- variance_explained[x1]
+x2 <- length(pc_vars)
+y2 <- variance_explained[x2]
+
+a <- y2 - y1
+b <- x1 - x2
+c <- (x2 - x1) * y1 - (y2 - y1) * x1
+
+distances_to_line <- abs(a *  (1:length(pc_vars)) + b * variance_explained + c) / sqrt(a^2 + b^2)
+elbow_index <- which.max(distances_to_line)
+
+cumulative <- cumsum(variance_explained)
+
+choosing_data <- tibble(
+  pcindex = 1:length(pc_vars),
+  variance_explained = variance_explained,
+  cumulative <- cumulative,
+  distances_to_line <- distances_to_line
+)
+
+viridis_colours <- viridis(5, option = "H")
+
+line_data <- tibble(
+  x = 1:length(pc_vars),
+  y = 1 - (x - 1) / length(pc_vars)
+)
+
+choosepcs <- ggplot(data = choosing_data) +
+  geom_point(mapping = aes(x = (pcindex), y = (variance_explained))) +
+  geom_line(data = line_data, aes(x = x, y = y)) +
+  annotate("text", x = 200, y = 0.85, label = "Linear Descent Line") +
+  geom_vline(xintercept = elbow_index, colour = viridis_colours[2], linetype = "dashed") +
+  theme_bw() +
+  scale_x_log10() +
+  labs(
+    title = "Proportion of Variance Explained as a Function of PC Index",
+    x = "Logarithm of PC Index",
+    y = "% Variance Explained"
+  )
+
+choosepcs
+
+distpcs <- ggplot(data = choosing_data) + 
+  #geom_step(mapping = aes(x = pcindex, y = distances_to_line)) +
+  geom_point(mapping = aes(x = pcindex, y = distances_to_line), alpha = 0.25, colour = viridis_colours[5]) +
+  geom_vline(xintercept = elbow_index, linetype = "dashed", colour = viridis_colours[2]) +
+  theme_bw() +
+  labs(
+    title = "Deviation from Linear Decay as a Function of PC Index ",
+    x = "Logarithm of PC Index",
+    y = "Deviation from Linear Decay [% Variance Explained]"
+  ) + 
+  scale_x_log10()
+
+distpcs
+
+
 
 ```
 
