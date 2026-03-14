@@ -147,7 +147,7 @@ silzoomsep <- ggplot(data = SEPSCORES, aes(x = algorithm, y = avg_silhouette)) +
 
 if (!file.exists("C:/Users/fmhfl/Desktop/Undergrad Project/undergrad_project/OUTPUTS/silzoomsep.png")) {
   ggsave("C:/Users/fmhfl/Desktop/Undergrad Project/undergrad_project/OUTPUTS/silzoomsep.png",
-         plot = vizcluster25,
+         plot = silzoomsep,
          width = 7,
          height = 5,
          dpi = 600,
@@ -212,16 +212,16 @@ silzoompcn <- ggplot(data = PCNSCORES, aes(x = algorithm, y = avg_silhouette)) +
   theme_bw() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-# if (!file.exists("C:/Users/fmhfl/Desktop/Undergrad Project/undergrad_project/OUTPUTS/silzoomsep.png")) {
-#   ggsave("C:/Users/fmhfl/Desktop/Undergrad Project/undergrad_project/OUTPUTS/silzoomsep.png",
-#          plot = vizcluster25,
-#          width = 7,
-#          height = 5,
-#          dpi = 600,
-#          units = "in")
-# } else {
-#   cat("silzoomsep already exists \n")
-# }
+if (!file.exists("C:/Users/fmhfl/Desktop/Undergrad Project/undergrad_project/OUTPUTS/silzoompcn.png")) {
+  ggsave("C:/Users/fmhfl/Desktop/Undergrad Project/undergrad_project/OUTPUTS/silzoompcn.png",
+         plot = silzoompcn,
+         width = 7,
+         height = 5,
+         dpi = 600,
+         units = "in")
+} else {
+  cat("silzoompcn already exists \n")
+}
 
 ```
 
