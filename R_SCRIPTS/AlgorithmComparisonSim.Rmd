@@ -1006,6 +1006,29 @@ Done!
 
 ```{r Comp Plot with TRUTH}
 
+LV_allscores <- fread("D:/AlgorithmComparisonSim/BaseSim/LV_allscores")
+LD_allscores <- fread("D:/AlgorithmComparisonSim/BaseSim/LD_allscores")
+PK_allscores <- fread("D:/AlgorithmComparisonSim/BaseSim/PK_allscores")
+TRUTH_allscores <- fread("D:/AlgorithmComparisonSim/BaseSim/TRUTH_allscores")
+
+combined_scores <- bind_rows(LV_allscores, LD_allscores, PK_allscores, TRUTH_allscores)
+
+combined_scores_long <- combined_scores |> 
+  pivot_longer(
+    cols = c(avg_silhouette, calinski_harabasz, davies_bouldin, adjusted_rand_index),
+    names_to = "metric",
+    values_to = "value"
+  )
+
+plot1 <- combined_scores_long |> 
+  filter(!(metric == "adjusted_rand_index" & algorithm == "Truth")) |> 
+  ggplot(aes(x = algorithm, y = value)) +
+  geom_boxplot() +
+  geom_jitter() +
+  facet_wrap(~ metric, scales = "free_y") +
+  theme_bw() 
+
+plot1
 
 
 ```
@@ -2203,3 +2226,31 @@ ggsave("C:/Users/fmhfl/Desktop/Undergrad Project/undergrad_project/OUTPUTS/PlotP
 
 ```
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Scratch: Summary Statistics %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+```{r Scratch Summary}
+
+base1 <- fread("D:/AlgorithmComparisonSim/PCNSim/LD_PCN_allscores")
+base2 <- fread("D:/AlgorithmComparisonSim/PCNSim/LV_PCN_allscores")
+base3 <- fread("D:/AlgorithmComparisonSim/PCNSim/PK_PCN_allscores")
+
+base <- bind_rows(base2, base1, base3)
+
+summary1 <- base |>
+  group_by(algorithm) |>
+  summarise(
+    across(
+      where(is.numeric),
+      list(mean = ~mean(., na.rm = TRUE), 
+           sd = ~sd(., na.rm = TRUE))
+    )
+  )
+
+t(summary1)
+
+
+
+```
