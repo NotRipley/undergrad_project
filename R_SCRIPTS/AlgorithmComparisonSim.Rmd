@@ -929,6 +929,87 @@ ggsave("C:/Users/fmhfl/Desktop/Undergrad Project/undergrad_project/OUTPUTS/PlotB
 ```
 Done!
 
+```{r TRUTH Scores Writeout}
+
+# we need to score the true labellings from the base sim
+# then re create the plot with these added in. and whatever our output, we should make the colours consistent where applicable. 
+
+t_0 <- Sys.time()
+cat("BEGINNING TRUTH SCORES WRITEOUT... \n")
+
+# read the file back in and set random seed for reproducibility
+metadata <- fread("D:/AlgorithmComparisonSim/BaseSim/metadata_acs")
+
+metadata <- metadata |> 
+  mutate(
+    ID = as.numeric(ID),
+    proj_name = as.character(proj_name),
+    batchCells = as.numeric(batchCells),
+    de.prob = as.numeric(de.prob),
+    nGenes = as.numeric(nGenes),
+    group.prob = strsplit(group.prob, "\\|") |>
+      lapply(as.numeric)
+  )
+
+set.seed(1618)
+
+TRUTH_allscores <- tibble(
+  algorithm = character(),
+  avg_silhouette = numeric(),
+  calinski_harabasz = numeric(),
+  davies_bouldin = numeric(),
+  adjusted_rand_index = numeric()
+)
+
+for (i in 1:nrow(metadata)) {
+  
+  temp_cluster <- fread(paste0("D:/AlgorithmComparisonSim/BaseSim/set", sprintf("%02d", i), "true_labels"))
+  temp_set <- t(fread(paste0("D:/AlgorithmComparisonSim/BaseSim/set", sprintf("%02d", i))))
+  
+  # need to format temp cluster a bit
+  temp_cluster$true_group <- as.numeric(str_remove_all(temp_cluster$true_group, "Group"))
+  colnames(temp_cluster) <- c("cell", "cluster")
+  temp_cluster <- temp_cluster$cluster
+  
+  temp_true <- temp_cluster
+  # where temp true is the same as temp cluster as we are assessing the true clustering here. this will mean that it's guaranteed a perfect ARI so we'll not plot it there.
+  
+  t_a <- Sys.time()
+  sprintf("Scoring the %s one now... \n", i)
+  
+  temp_score <- cluster_scores(algorithm = "Truth",
+                               clustering = temp_cluster,
+                               original_counts = temp_set,
+                               true_labels = temp_true)
+  TRUTH_allscores <- add_row(TRUTH_allscores, temp_score)
+  cat("Added", i, " to TRUTH_allscores... \n")
+  t_b <- Sys.time()
+  cat(t_b - t_a, "to do the", i, "th one... \n")
+  
+  
+}
+
+t_1 <- Sys.time()
+cat("Took", t_1 - t_0, "to do all sets... \n")
+
+if (file.exists("D:/AlgorithmComparisonSim/BaseSim/TRUTH_allscores")) {
+  cat("Scores for base sim true partition already exist... \n")
+} else {
+  fwrite(TRUTH_allscores, "D:/AlgorithmComparisonSim/BaseSim/TRUTH_allscores")
+  cat("Written out truth allscores for base sim")
+}
+
+TRUTH_allscores
+
+```
+Done!
+
+```{r Comp Plot with TRUTH}
+
+
+
+```
+
 %%%%%%%%%%%%%%%%%%%%%%%%%
 % Separation Simulation %
 %%%%%%%%%%%%%%%%%%%%%%%%%
