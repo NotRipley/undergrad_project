@@ -190,14 +190,15 @@ PCNSCORES$pcn <- pcvector
 
 # Extract the 4 plasma colors for sep values 0.1, 0.2, 0.3, 0.4
 inferno_colors <- viridis(3, option = "B")
+inferno_colors[3] <- "#FFD700" 
 names(inferno_colors) <- c("5", "10", "20")
 
 # Faceted plot with matching colors
-silzoompcn <- ggplot(data = PCNSCORES, aes(x = algorithm, y = avg_silhouette)) +
+silzoompcnalt <- ggplot(data = PCNSCORES, aes(x = algorithm, y = avg_silhouette)) +
+  geom_boxplot(alpha = 1, outlier.shape = NA) +
   geom_point(aes(color = factor(pcn)), 
              position = position_jitter(width = 0.2, height = 0), 
              alpha = 1, size = 2) +
-  geom_boxplot(alpha = 1, outlier.shape = NA) +
   facet_wrap(~ pcn, scales = "free_y", 
              labeller = as_labeller(c(
                "5" = "5 PCs",
@@ -212,15 +213,15 @@ silzoompcn <- ggplot(data = PCNSCORES, aes(x = algorithm, y = avg_silhouette)) +
   theme_bw() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-if (!file.exists("C:/Users/fmhfl/Desktop/Undergrad Project/undergrad_project/OUTPUTS/silzoompcn.png")) {
-  ggsave("C:/Users/fmhfl/Desktop/Undergrad Project/undergrad_project/OUTPUTS/silzoompcn.png",
-         plot = silzoompcn,
+if (!file.exists("C:/Users/fmhfl/Desktop/Undergrad Project/undergrad_project/OUTPUTS/silzoompcnalt.png")) {
+  ggsave("C:/Users/fmhfl/Desktop/Undergrad Project/undergrad_project/OUTPUTS/silzoompcnalt.png",
+         plot = silzoompcnalt,
          width = 7,
          height = 5,
          dpi = 600,
          units = "in")
 } else {
-  cat("silzoompcn already exists \n")
+  cat("silzoompcnalt already exists \n")
 }
 
 ```
