@@ -2249,16 +2249,48 @@ ggsave("C:/Users/fmhfl/Desktop/Undergrad Project/undergrad_project/OUTPUTS/PlotP
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
-```{r Scratch Summary}
+```{r Scratch Summary PCN}
 
 base1 <- fread("D:/AlgorithmComparisonSim/PCNSim/LD_PCN_allscores")
 base2 <- fread("D:/AlgorithmComparisonSim/PCNSim/LV_PCN_allscores")
 base3 <- fread("D:/AlgorithmComparisonSim/PCNSim/PK_PCN_allscores")
 
+# read the file back in and set random seed for reproducibility
+metadata_acsPCN <- fread("D:/AlgorithmComparisonSim/PCNSim/metadata_acsPCN")
+
+metadata_acsPCN <- metadata_acsPCN |> 
+  mutate(
+    ID = as.numeric(ID),
+    proj_name = as.character(proj_name),
+    batchCells = as.numeric(batchCells),
+    de.prob = as.numeric(de.prob),
+    nGenes = as.numeric(nGenes),
+    group.prob = strsplit(group.prob, "\\|") |>
+      lapply(as.numeric)
+  )
+
 base <- bind_rows(base2, base1, base3)
 
+npcs_vector <- vector(mode = "numeric", length = nrow(metadata_acsPCN))
+for (i in 1:nrow(metadata_acsPCN)) {
+  if (i <= 20) {
+      level <- 5
+    } else if (i <= 40) {
+      level <- 10
+    } else {
+      level <- 20
+    }
+  npcs_vector[i] <- level
+}
+
+cat("written out the npc vector... \n")
+
+base$npcs <- rep(npcs_vector, 3)
+
+cat("added the npcs to the table... \n")
+
 summary1 <- base |>
-  group_by(algorithm) |>
+  group_by(algorithm, npcs) |> 
   summarise(
     across(
       where(is.numeric),
@@ -2267,8 +2299,50 @@ summary1 <- base |>
     )
   )
 
-t(summary1)
+(summary1)
 
 
 
 ```
+
+```{r Scratch Summary SEP}
+
+base1 <- fread("D:/AlgorithmComparisonSim/SeparationSim/LD_SEP_allscores")
+base2 <- fread("D:/AlgorithmComparisonSim/SeparationSim/LV_SEP_allscores")
+base3 <- fread("D:/AlgorithmComparisonSim/SeparationSim/PK_SEP_allscores")
+
+# read the file back in and set random seed for reproducibility
+metadata_acsSEP <- fread("D:/AlgorithmComparisonSim/SeparationSim/metadata_acsSEP")
+
+metadata_acsSEP <- metadata_acsSEP |> 
+  mutate(
+    ID = as.numeric(ID),
+    proj_name = as.character(proj_name),
+    batchCells = as.numeric(batchCells),
+    de.prob = as.numeric(de.prob),
+    nGenes = as.numeric(nGenes),
+    group.prob = strsplit(group.prob, "\\|") |>
+      lapply(as.numeric)
+  )
+
+base <- bind_rows(base2, base1, base3)
+
+base$de.prob <- rep(metadata_acsSEP$de.prob, 3)
+
+
+
+summary2 <- base |>
+  group_by(algorithm, de.prob) |> 
+  summarise(
+    across(
+      where(is.numeric),
+      list(mean = ~mean(., na.rm = TRUE), 
+           sd = ~sd(., na.rm = TRUE))
+    )
+  )
+
+print(as_tibble(summary2))
+
+```
+
+
