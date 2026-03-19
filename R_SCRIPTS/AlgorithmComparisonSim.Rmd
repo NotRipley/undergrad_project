@@ -70,8 +70,7 @@ make_a_dataset <- function(proj_name, batchCells, group.prob, de.prob, nGenes) {
 
 #############################################################################
 
-# rewrite our K Means function. Need to fully understand what's going on. 
-
+# DEPRECATED
 run_kmeans <- function(set_index, counts, k = NULL) {
   
   start_time <- Sys.time()
@@ -83,7 +82,6 @@ run_kmeans <- function(set_index, counts, k = NULL) {
   # we remove dimensions that dont vary at all, as they won't help with clustering
   counts <- counts[, apply(counts, 2, var) > 0]
   
-  # I think that we want to scale the data in order for us to see the clusters
   # counts <- scale(counts)
   
   # Estimate k with clusGap
@@ -96,8 +94,8 @@ run_kmeans <- function(set_index, counts, k = NULL) {
       x = counts,
       FUNcluster = kmeans,
       K.max = 10,
-      B = 5, #REDUCED TEMPORARILY, RESET TO 20
-      nstart = 5 #REDUCED TEMPORARILY< RESET TO 25
+      B = 5,
+      nstart = 5
     )
     
     use_k <- maxSE(clusGapcall$Tab[, "gap"],
@@ -126,7 +124,7 @@ run_kmeans <- function(set_index, counts, k = NULL) {
   time_4 <- Sys.time()
   cat("Took ", time_4 - time_3, "to finish clustering... \n")
   
-  # and now having produced our cluster assignments we write them out. For now I think I'll only need the cluster assignments, so we literally just write those out. 
+
   return(kmobject$cluster)
   
   cat("END run_kmeans function. \n")
@@ -1663,7 +1661,7 @@ For this, the data is generated much the same (identically?) to the base sim. Ho
 ```{r Make Parameter Matrix PCN}
 
 # similar to base simulation, but want each third to be identical
-#each third already is? so our metadata file is just identical to the base sim one. not a problem i don't think. 
+
 parameter_matrix_PCN <- tibble(
   ID = 1:60,
   proj_name = paste0("set", sprintf("%02d", 1:60)),

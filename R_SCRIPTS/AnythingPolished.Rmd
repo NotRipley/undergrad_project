@@ -128,7 +128,7 @@ kmeans_true_k <- function(data, k, ignore_last) {
 
 ```
 
-What do we take away from this? So far, it's not working. The only thing I can think of is that I add noise inside the for loop, which may mean that it carries a bit of signal? That wouldn't make any sense though. 
+
 
 ### Comparison of KMeans vs DBScan on Simple Data
 
@@ -145,10 +145,6 @@ In this section, we are not demonstrating the curse of dimensionality with DBSca
 We check on medium- and high-dimensional data, and with well-separated and overlapping clusters. 
 
 DBScan will hasve serious challenges (from what I understand) as the dimensionality of the data exceeds our sample size. I think that this is down to the distance convergence as dimension increases; the ratio of distances to two points in n-space goes to 0 as n goes to infinity. This will almost always be the case in the splatter and real data. Hence, even now when we could artificially get around that, we implement our dimensionality reduction here. 
-
-For now, just some PCA. We can check nonlinear tSNE and UMAP later. 
-
-When we come back to this, we will finish this pca thing and check the dbscan performance on simple data. 
 
 ```{r Functions2}
 
@@ -171,7 +167,7 @@ simple_dbscan <- function(data, pcs, ignore_last) {
 
 ```
 
-We get a first PC explaining the vast majority of the variation because of the way we have generated the data. It may be that it's not really meaningful to compare kmeans and dbscan on this same simulation. I think that we can easily come back and do that with mlbench if we want. But for now, I'll focus on getting the splatter sim data up. Then, I want to generate some realistic data with it, and go for some comparisons of the performance of kmeans with and without pca, and dbscan with and without pca. 
+
 
 ```{r Simulation2}
 
@@ -205,9 +201,7 @@ plot(cassini)
 ### Performance on Splatter Data
 
 We create a function which loads in a new SplatParams object and sets the relevant parameters to a specified value. 
-There's so many parameters, we should be careful not to overdo our function, adding in the ability to change from default values just as needed. To bear in mind: check the differential expression params. 
-
-Anyway, it's good that we've started on this stuff. Big mountain but plodding. 
+There's so many parameters, we should be careful not to overdo our function, adding in the ability to change from default values just as needed. 
 
 ```{r Libraries3}
 
@@ -224,7 +218,7 @@ suppressPackageStartupMessages({
 
 # batchCells - a vector giving the number of cells per batch, ie two batches with 100 cells is (100, 100)
 # group.prob - vector specifying probabilities per group, ie (0.5, 0.5) will likely give two same sized groups
-# de.prob - probability that genes will be DE by group(?) i.e. that they'll differ more than just noise
+# de.prob - probability that genes will be DE by group i.e. that they'll differ more than just noise
 # nGenes - number of genes to simulate
 # all else we leave as default values. 
 seurat_from_params <- function(batchCells, group.prob, de.prob, nGenes, proj_name) {
@@ -260,7 +254,7 @@ seurat_from_params <- function(batchCells, group.prob, de.prob, nGenes, proj_nam
 
 ```
 
-We will do the standard pre-processing workflow from the seurat tutorial, on our simulated data. Hopefully it has what we need there. Then, we can compare the performance of dbscan and kmeans on it, using the ground truth that we still have in this case.
+
 
 
 ```{r Simulation3}
@@ -354,9 +348,7 @@ seurat2 <- seurat_preprocess(seurat2)
 
 DimPlot(seurat2)
 
-# i can't tell why these are incredibly well separated, if it's just because UMAP is cooking or what. That'll be one of the next tasks. 
 
-# but yeah, now we need to extract just how good of a job the algorithms have done here. As standard, the clustering in this workflow is Louvain i think.
 
 ```
 
